@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# All tests: the pure protocol/pellet tests and the Home Assistant tests.
+set -e
+cd "$(dirname "$0")/.."
+export PYTHONPATH="${PWD}${PYTHONPATH:+:$PYTHONPATH}"
+python -m pytest "$@"

@@ -107,6 +107,8 @@ class PelletCoordinator(DataUpdateCoordinator[PelletState]):
             self.inventory.set_storage(float(initial), dt_util.now(), note="setup")
         self._apply_options()
         self._unsub_boiler = self.boiler.async_add_listener(self._on_boiler_update)
+        # The boiler's first refresh already happened; take its reading now instead of a poll later.
+        self._on_boiler_update()
 
     async def async_unload(self) -> None:
         if self._unsub_boiler:
@@ -214,22 +216,24 @@ class PelletCoordinator(DataUpdateCoordinator[PelletState]):
 
     async def async_fill_silo(self, kg: float | None, bags: float | None, from_storage: bool, note: str | None) -> None:
         amount = self._kg(kg, bags)
+        if from_storage and amount > self.inventory.storage_kg + 1e-6:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="not_enough_storage",
+                translation_placeholders={"storage": f"{self.inventory.storage_kg:.0f}", "kg": f"{amount:.0f}"},
+            )
+        silo_after: float | None = None
         if self.tracks_silo_on_boiler:
-            # The controller counts the silo itself; tell it about the new pellets.
+            # The controller counts the silo itself; tell it about the new pellets. Its refresh
+            # then mirrors the new total, so the ledger must not add the amount a second time.
             current = self.boiler.data.hopper_kg if self.boiler.data else None
-            new_total = (current or 0.0) + amount
-            if from_storage and amount > self.inventory.storage_kg + 1e-6:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="not_enough_storage",
-                    translation_placeholders={"storage": f"{self.inventory.storage_kg:.0f}", "kg": f"{amount:.0f}"},
-                )
+            silo_after = float(round((current or 0.0) + amount))
             if self.boiler.can_write:
-                await self.boiler.async_write("hopper", "content", round(new_total))
+                await self.boiler.async_write("hopper", "content", round(silo_after))
             else:
-                _LOGGER.info("No PIN configured: remember to set the silo content on the controller to %.0f kg", new_total)
+                _LOGGER.info("No PIN configured: remember to set the silo content on the controller to %.0f kg", silo_after)
         try:
-            self.inventory.fill_silo(amount, dt_util.now(), from_storage=from_storage, note=note)
+            self.inventory.fill_silo(amount, dt_util.now(), from_storage=from_storage, silo_after=silo_after, note=note)
         except StockError as err:
             raise ServiceValidationError(str(err)) from err
         await self._changed()

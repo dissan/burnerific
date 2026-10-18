@@ -143,6 +143,15 @@ async def scan(
     return list(found.values())
 
 
+def split_host(host: str, default_port: int = PORT) -> tuple[str, int]:
+    """``"192.168.1.20:9000"`` -> ``("192.168.1.20", 9000)``. Bare IPv6 addresses are left alone."""
+    host = host.strip()
+    name, sep, port = host.rpartition(":")
+    if sep and port.isdigit() and ":" not in name:
+        return name, int(port)
+    return host.strip("[]"), default_port
+
+
 class NbeClient:
     """One controller. Requests are serialized; the controller only handles one at a time."""
 
@@ -156,7 +165,7 @@ class NbeClient:
         timeout: float = 3.0,
         retries: int = 2,
     ) -> None:
-        self.host = host
+        self.host, port = split_host(host, port)
         self.serial = serial
         self.pin = pin
         self.port = port

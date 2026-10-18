@@ -1,0 +1,29 @@
+# Development Home Assistant for Burnerific. Started by scripts/develop.
+# Not default_config: it pulls in go2rtc, bluetooth and friends that need host
+# binaries and hardware the devcontainer does not have.
+frontend:
+config:
+person:
+history:
+logbook:
+energy:
+sun:
+search:
+system_health:
+automation:
+script:
+
+homeassistant:
+  name: Burnerific dev
+  latitude: 55.68
+  longitude: 12.57
+  elevation: 10
+  unit_system: metric
+  time_zone: Europe/Copenhagen
+  currency: DKK
+  country: DK
+
+logger:
+  default: info
+  logs:
+    custom_components.burnerific: debug
