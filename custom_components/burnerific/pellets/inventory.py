@@ -90,14 +90,26 @@ class Inventory:
         self.delivered_kg_total += kg
         return self._log("delivery", kg, at, price_per_kg=price_per_kg, note=note)
 
-    def fill_silo(self, kg: float, at: datetime, *, from_storage: bool = True, note: str | None = None) -> Event:
-        """Move ``kg`` into the silo. With ``from_storage`` it is taken out of storage."""
+    def fill_silo(
+        self,
+        kg: float,
+        at: datetime,
+        *,
+        from_storage: bool = True,
+        silo_after: float | None = None,
+        note: str | None = None,
+    ) -> Event:
+        """Move ``kg`` into the silo. With ``from_storage`` it is taken out of storage.
+
+        ``silo_after`` is the silo content when someone else (the controller) already
+        counted the fill; otherwise ``kg`` is added to what the silo held.
+        """
         _positive(kg)
         if from_storage and kg > self.storage_kg + 1e-6:
             raise StockError(f"only {self.storage_kg:.1f} kg in storage, cannot take {kg:.1f} kg")
         if from_storage:
             self.storage_kg = max(0.0, self.storage_kg - kg)
-        self.silo_kg = (self.silo_kg or 0.0) + kg
+        self.silo_kg = silo_after if silo_after is not None else (self.silo_kg or 0.0) + kg
         return self._log("fill", kg, at, note=note)
 
     def set_storage(self, kg: float, at: datetime, *, note: str | None = None) -> Event:

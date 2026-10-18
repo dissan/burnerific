@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run Home Assistant with Burnerific loaded from this checkout. Open http://localhost:8123.
+set -e
+cd "$(dirname "$0")/.."
+
+# `custom_components` has no __init__.py, so it is a namespace package: with the
+# repo root on the path, Home Assistant finds custom_components/burnerific here.
+export PYTHONPATH="${PWD}${PYTHONPATH:+:$PYTHONPATH}"
+
+hass --config "${PWD}/config" --debug "$@"

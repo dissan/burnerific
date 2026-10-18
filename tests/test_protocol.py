@@ -11,6 +11,15 @@ from nbe.model import BoilerData, BoilerReader, num, series
 from tests.rsa_util import b64, generate, pkcs1, spki
 
 
+@pytest.fixture(autouse=True)
+def _allow_sockets(request):
+    """These tests talk UDP on localhost. Under the Home Assistant test plugin sockets are blocked unless asked for."""
+    try:
+        request.getfixturevalue("socket_enabled")
+    except pytest.FixtureLookupError:
+        pass
+
+
 def make_response(fn: int, seq: int, payload: str, status: int = 0, controller: str = "123456") -> bytes:
     raw = payload.encode()
     return (

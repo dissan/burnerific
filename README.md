@@ -93,14 +93,23 @@ Everything runs locally. With Open-Meteo on (the default), your home location ro
 
 ## Development
 
-```bash
-pip install pytest pytest-asyncio
-pytest
-```
+Open the repo in VS Code and choose **Reopen in Container**. The devcontainer has Python 3.14, Home Assistant and its test harness.
 
+| Task (Terminal → Run Task) | Script |
+|---|---|
+| Run Home Assistant | `scripts/develop`: HA at http://localhost:8123 with Burnerific loaded from this checkout |
+| Fake boiler | `python scripts/fake_boiler.py --speed 30`: a simulated NBE controller (PIN `0123456789`) |
+| Home Assistant + fake boiler | both at once. Add the integration and it finds the fake boiler by broadcast |
+| Tests | `scripts/test` |
+
+The fake boiler speaks the real protocol, including encrypted writes. The house heats with the time of day, the boiler cycles, and the burn counter, silo and day/month arrays move. `--speed` burns pellets faster so you can watch the stock drop.
+
+A real boiler on your LAN: Docker Desktop doesn't pass broadcasts through, so choose manual entry and type the boiler's IP. Replies come back through NAT. `ip:port` works too.
+
+Code layout:
 - `custom_components/burnerific/nbe/` is the protocol: frames, RSA, async UDP client and normalisation.
 - `custom_components/burnerific/pellets/` is the stock ledger, history, climate, consumption model and forecast.
 
-Neither imports Home Assistant, so the tests run without it. The protocol tests include a fake boiler on localhost that checks encrypted writes end to end.
+Neither imports Home Assistant, so `pytest` on those runs anywhere, with just `pytest` and `pytest-asyncio` installed. `tests/ha/` runs the integration in a real Home Assistant test instance against a fake controller on localhost. It is skipped where `pytest-homeassistant-custom-component` isn't installed.
 
 The protocol was worked out with [NBElocalconnect](https://github.com/Spit68/NBElocalconnect) as a reference. The implementation here is our own.

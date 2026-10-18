@@ -4,3 +4,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+
+# Home Assistant dev config: keep only the YAML
+config/*
+!config/configuration.yaml
