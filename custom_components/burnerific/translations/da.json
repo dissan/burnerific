@@ -1,0 +1,484 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Fundne fyr",
+        "description": "Vælg dit fyr. PIN-koden (på mærkatet på styringen) skal kun bruges til at ændre indstillinger og opdatere siloen i styringen.",
+        "data": {
+          "host": "Fyr",
+          "pin": "PIN"
+        }
+      },
+      "manual": {
+        "title": "Forbind til fyret",
+        "description": "Intet fyr svarede på netværket. Skriv dets IP-adresse. Serienummer og PIN er valgfrie.",
+        "data": {
+          "host": "IP-adresse",
+          "serial": "Serienummer",
+          "pin": "PIN"
+        }
+      },
+      "pellets": {
+        "title": "Dine piller",
+        "description": "Fortæl Burnerific om dit lager, så den kan forudsige hvornår pillerne slipper op. Alt kan ændres senere.",
+        "data": {
+          "initial_storage_kg": "Piller på lager nu (kg, uden siloen)",
+          "silo_capacity_kg": "Silokapacitet (kg)",
+          "bag_kg": "Sækkestørrelse (kg)",
+          "annual_kg": "Cirka forbrug pr. år (kg)",
+          "weather_entity": "Vejrudsigt"
+        },
+        "data_description": {
+          "annual_kg": "Et første gæt til modellen. Den lærer dit rigtige forbrug inden for få uger."
+        }
+      },
+      "reconfigure": {
+        "title": "Skift forbindelse",
+        "data": {
+          "host": "IP-adresse",
+          "pin": "PIN (tom beholder den nuværende)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Fyret svarede ikke. Tjek adressen, og at Home Assistant er på samme netværk.",
+      "invalid_host": "Ikke en gyldig adresse."
+    },
+    "abort": {
+      "already_configured": "Dette fyr er allerede sat op.",
+      "reconfigure_successful": "Forbindelsen er opdateret."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Burnerific",
+        "data": {
+          "scan_interval": "Opdateringsinterval",
+          "weather_entity": "Vejrudsigt",
+          "temperature_entity": "Udetemperaturføler",
+          "use_open_meteo": "Brug Open-Meteo til klimahistorik og lang udsigt",
+          "bag_kg": "Sækkestørrelse (kg)",
+          "silo_capacity_kg": "Silokapacitet (kg)",
+          "silo_tracking": "Hvem tæller siloen",
+          "annual_kg": "Cirka forbrug pr. år (kg)",
+          "order_lead_days": "Leveringstid på piller (dage)",
+          "season_end": "Fyringssæsonen slutter (MM-DD)",
+          "kwh_per_kg": "Energi pr. kg piller"
+        },
+        "data_description": {
+          "temperature_entity": "Bruges i stedet for fyrets udeføler til læring.",
+          "use_open_meteo": "Sender din placering afrundet til ~1 km til open-meteo.com.",
+          "season_end": "Standard 06-01 (12-01 på den sydlige halvkugle).",
+          "order_lead_days": "'Bestil piller' tænder, når der er 10 % risiko for at løbe tør inden for så mange dage."
+        }
+      }
+    }
+  },
+  "selector": {
+    "silo_tracking": {
+      "options": {
+        "boiler": "Styringen (indstilling for magasinindhold)",
+        "integration": "Burnerific, ud fra forbrugstælleren"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Indtast adresse manuelt"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Tilstand",
+        "state": {
+          "waiting": "Vent et øjeblik",
+          "ignition_1": "Optænding 1",
+          "ignition_2": "Optænding 2",
+          "power": "Drift",
+          "pause": "Pause",
+          "hot_water": "Varmt vand",
+          "alarm_low_boiler_temp": "Alarm: lav temperatur på kedel",
+          "stopped_temp_reached": "Stoppet, temperatur opnået",
+          "summer_stop": "Sommerstop",
+          "alarm_hot_burner": "Alarm: varm brænder",
+          "alarm_burner_plug": "Alarm: brænderstik eller skaktføler",
+          "alarm_ignition": "Alarm: optænding",
+          "off": "Slukket",
+          "alarm_boiler_sensor": "Alarm: fejl på kedelføler",
+          "alarm_photo_sensor": "Alarm: fejl på fotoføler",
+          "alarm_shaft_sensor": "Alarm: fejl på skaktføler",
+          "alarm_auger_output": "Alarm: fejl på snegl udgang L1",
+          "alarm_no_flame_high": "Alarm: ingen ild i højlast",
+          "stopped_external_temp": "Stoppet af ekstern temperatur",
+          "stopped_timer": "Stoppet af ur",
+          "stopped_external_contact": "Stoppet af ekstern kontakt",
+          "stopped_weather": "Stoppet af vejrkompensering",
+          "alarm_fan_rpm": "Alarm: fejl RPM på blæser",
+          "alarm_no_flame_low": "Alarm: ingen ild i lavlast",
+          "door_open": "Låge er åben",
+          "alarm_overheat": "Alarm: overkogstermostat",
+          "alarm_cascade": "Alarm: stoppet af kaskadestyring",
+          "alarm_compressor": "Alarm: kompressor mangler tryk",
+          "alarm_back_pressure": "Alarm: forhøjet modtryk",
+          "alarm_air_flow": "Alarm: luft m³/t kan ikke opnås",
+          "alarm_exhaust_temp": "Alarm: udblæsningstemperatur for høj",
+          "alarm_ash_drawer": "Alarm: askeskuffe mangler",
+          "air_flow_calibration": "Luft m³/t kalibrering",
+          "alarm_overpressure": "Alarm: overtryk i forbrænding",
+          "alarm_oxygen_sensor": "Alarm: fejl på O₂-sensor",
+          "compressor_cleaning": "Kompressorrens",
+          "alarm_ignition_failed": "Alarm: optænding mislykket",
+          "alarm_condensate": "Alarm: kondensopsamler fuld",
+          "unknown": "Ukendt"
+        }
+      },
+      "substate": {
+        "name": "Undertilstand",
+        "state": {
+          "none": "Ingen",
+          "purging": "Ventilerer kedel før optænding",
+          "ignition_fuel": "Brændsel til optænding",
+          "igniter_pulse": "Startpuls eltænding",
+          "electric_ignition": "Eltænding",
+          "cooling_boiler": "Nedkøling af kedel",
+          "extinguishing": "Slukker ilden og afkøler brænder",
+          "fan_cleaning": "Rens med blæser",
+          "ash_removal": "Asketømning",
+          "external_contact": "Ekstern kontakt",
+          "auger_after_run": "Efterløb intern snegl",
+          "residual_heat_to_dhw": "Overfører restvarme til VVB",
+          "external_filling": "Ekstern fyldning aktiv",
+          "unknown": "Ukendt"
+        }
+      },
+      "substate_time": {
+        "name": "Tid tilbage i undertilstand"
+      },
+      "power_pct": {
+        "name": "Effekt"
+      },
+      "power_kw": {
+        "name": "Effekt (kW)"
+      },
+      "boiler_temp": {
+        "name": "Kedeltemperatur"
+      },
+      "boiler_ref": {
+        "name": "Ønsket kedeltemperatur"
+      },
+      "return_temp": {
+        "name": "Returtemperatur"
+      },
+      "smoke_temp": {
+        "name": "Røgtemperatur"
+      },
+      "shaft_temp": {
+        "name": "Skakttemperatur"
+      },
+      "dhw_temp": {
+        "name": "Varmtvandstemperatur"
+      },
+      "dhw_ref": {
+        "name": "Ønsket varmtvandstemperatur"
+      },
+      "outdoor_temp": {
+        "name": "Udetemperatur"
+      },
+      "oxygen": {
+        "name": "Ilt"
+      },
+      "oxygen_ref": {
+        "name": "Ønsket ilt"
+      },
+      "photo_level": {
+        "name": "Lysniveau"
+      },
+      "fan_speed": {
+        "name": "Blæserhastighed"
+      },
+      "exhaust_speed": {
+        "name": "Røgsuger"
+      },
+      "consumption_today": {
+        "name": "Forbrug i dag"
+      },
+      "consumption_total": {
+        "name": "Samlet forbrug"
+      },
+      "fuel_energy": {
+        "name": "Energi i brændsel"
+      },
+      "silo": {
+        "name": "Silo"
+      },
+      "silo_level": {
+        "name": "Fyldning i silo"
+      },
+      "storage": {
+        "name": "Lager"
+      },
+      "storage_bags": {
+        "name": "Sække på lager"
+      },
+      "stock": {
+        "name": "Piller i alt"
+      },
+      "stock_value": {
+        "name": "Værdi af piller"
+      },
+      "price_per_kg": {
+        "name": "Gennemsnitlig pillepris"
+      },
+      "burned_today": {
+        "name": "Brændt i dag"
+      },
+      "runout_date": {
+        "name": "Pillerne slipper op"
+      },
+      "days_left": {
+        "name": "Dage med piller tilbage"
+      },
+      "silo_empty_date": {
+        "name": "Silo tom"
+      },
+      "order_recommendation": {
+        "name": "Bestil for at klare sæsonen"
+      },
+      "need_until_season_end": {
+        "name": "Behov til sæsonens slutning"
+      },
+      "runout_risk": {
+        "name": "Risiko for at løbe tør i sæsonen"
+      },
+      "forecast_today": {
+        "name": "Forventet i dag"
+      },
+      "forecast_7d": {
+        "name": "Forventet næste 7 dage"
+      },
+      "forecast_30d": {
+        "name": "Forventet næste 30 dage"
+      },
+      "heating_limit": {
+        "name": "Varmegrænse"
+      },
+      "kg_per_degree_day": {
+        "name": "Piller pr. graddag"
+      },
+      "base_load": {
+        "name": "Grundforbrug"
+      },
+      "model_days": {
+        "name": "Dage lært"
+      }
+    },
+    "binary_sensor": {
+      "alarm": {
+        "name": "Alarm"
+      },
+      "burning": {
+        "name": "Ild"
+      },
+      "igniting": {
+        "name": "Optænder"
+      },
+      "boiler_pump": {
+        "name": "Kedelpumpe"
+      },
+      "house_pump": {
+        "name": "Huspumpe"
+      },
+      "dhw_valve": {
+        "name": "Varmtvandsventil"
+      },
+      "order_pellets": {
+        "name": "Bestil piller"
+      },
+      "refill_silo": {
+        "name": "Fyld silo"
+      }
+    },
+    "number": {
+      "fill_amount": {
+        "name": "Påfyldningsmængde"
+      },
+      "storage_set": {
+        "name": "Piller på lager"
+      },
+      "silo_set": {
+        "name": "Piller i silo"
+      },
+      "boiler_setpoint": {
+        "name": "Ønsket kedeltemperatur"
+      },
+      "dhw_setpoint": {
+        "name": "Ønsket varmtvandstemperatur"
+      }
+    },
+    "button": {
+      "fill_silo": {
+        "name": "Fyld silo fra lager"
+      },
+      "start": {
+        "name": "Start fyr"
+      },
+      "stop": {
+        "name": "Stop fyr"
+      },
+      "reset_alarm": {
+        "name": "Nulstil alarm"
+      }
+    }
+  },
+  "exceptions": {
+    "pin_required": {
+      "message": "Angiv fyrets PIN i integrationen for at ændre indstillinger."
+    },
+    "write_failed": {
+      "message": "Fyret afviste {setting}: {error}"
+    },
+    "amount_required": {
+      "message": "Angiv en mængde i kg eller sække."
+    },
+    "not_enough_storage": {
+      "message": "Kun {storage} kg på lager, kan ikke tage {kg} kg."
+    },
+    "nothing_to_fill": {
+      "message": "Intet at fylde: lageret er tomt eller siloen er fuld."
+    },
+    "entry_not_found": {
+      "message": "Intet indlæst Burnerific-fyr passer."
+    },
+    "entry_ambiguous": {
+      "message": "Mere end ét fyr: angiv hvilket med config_entry_id."
+    }
+  },
+  "services": {
+    "add_delivery": {
+      "name": "Tilføj pillelevering",
+      "description": "Piller er leveret. Lægges på lager og opdaterer gennemsnitsprisen.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mængde i kilo."
+        },
+        "bags": {
+          "name": "Sække",
+          "description": "Mængde i sække (sækkestørrelse fra indstillingerne). Lægges til kg."
+        },
+        "price_per_kg": {
+          "name": "Pris pr. kg",
+          "description": "Valgfri."
+        },
+        "total_price": {
+          "name": "Samlet pris",
+          "description": "Valgfri, bruges hvis pris pr. kg ikke er angivet."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Fritekst der gemmes i lagerloggen."
+        }
+      }
+    },
+    "fill_silo": {
+      "name": "Fyld silo",
+      "description": "Piller er hældt i siloen. Tages fra lageret og skrives til styringen, hvis PIN er angivet.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mængde i kilo. Lad kg og sække være tomme for at fylde hele sække op til silokapaciteten."
+        },
+        "bags": {
+          "name": "Sække",
+          "description": "Mængde i sække (sækkestørrelse fra indstillingerne). Lægges til kg."
+        },
+        "from_storage": {
+          "name": "Tag fra lager",
+          "description": "Slå fra, hvis pillerne ikke kom fra det lager, der holdes styr på."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Fritekst der gemmes i lagerloggen."
+        }
+      }
+    },
+    "set_storage": {
+      "name": "Angiv lager",
+      "description": "Ret mængden på lager efter optælling.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mængde i kilo."
+        },
+        "bags": {
+          "name": "Sække",
+          "description": "Mængde i sække (sækkestørrelse fra indstillingerne). Lægges til kg."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Fritekst der gemmes i lagerloggen."
+        }
+      }
+    },
+    "set_silo": {
+      "name": "Angiv siloindhold",
+      "description": "Ret mængden i siloen.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mængde i kilo."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Fritekst der gemmes i lagerloggen."
+        }
+      }
+    },
+    "set_setting": {
+      "name": "Ændr indstilling på fyret",
+      "description": "Skriv en vilkårlig indstilling på styringen, fx boiler.temp. Kræver PIN.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        },
+        "key": {
+          "name": "Indstilling",
+          "description": "gruppe.navn, fx boiler.temp eller hot_water.temp."
+        },
+        "value": {
+          "name": "Værdi",
+          "description": "Ny værdi."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Hent pilleprognose",
+      "description": "Returnerer hele prognosen: hvornår pillerne slipper op, daglig kurve, model og klima.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Fyr",
+          "description": "Hvilket fyr. Kun nødvendigt med flere."
+        }
+      }
+    }
+  }
+}

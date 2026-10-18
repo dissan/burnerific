@@ -1,0 +1,93 @@
+add_delivery:
+  fields:
+    config_entry_id: &entry
+      selector:
+        config_entry:
+          integration: burnerific
+    kg: &kg
+      example: 975
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.5
+          unit_of_measurement: kg
+          mode: box
+    bags: &bags
+      example: 65
+      selector:
+        number:
+          min: 0
+          max: 5000
+          step: 1
+          mode: box
+    price_per_kg:
+      example: 2.85
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.01
+          mode: box
+    total_price:
+      example: 2780
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.01
+          mode: box
+    note: &note
+      selector:
+        text:
+
+fill_silo:
+  fields:
+    config_entry_id: *entry
+    kg: *kg
+    bags: *bags
+    from_storage:
+      default: true
+      selector:
+        boolean:
+    note: *note
+
+set_storage:
+  fields:
+    config_entry_id: *entry
+    kg: *kg
+    bags: *bags
+    note: *note
+
+set_silo:
+  fields:
+    config_entry_id: *entry
+    kg:
+      required: true
+      example: 120
+      selector:
+        number:
+          min: 0
+          max: 5000
+          step: 0.5
+          unit_of_measurement: kg
+          mode: box
+    note: *note
+
+set_setting:
+  fields:
+    config_entry_id: *entry
+    key:
+      required: true
+      example: boiler.temp
+      selector:
+        text:
+    value:
+      required: true
+      example: 70
+      selector:
+        text:
+
+get_forecast:
+  fields:
+    config_entry_id: *entry
