@@ -1,0 +1,86 @@
+{
+  "entity": {
+    "sensor": {
+      "state": {
+        "default": "mdi:fire",
+        "state": {
+          "off": "mdi:fire-off",
+          "waiting": "mdi:timer-sand",
+          "ignition_1": "mdi:lightning-bolt",
+          "ignition_2": "mdi:lightning-bolt",
+          "pause": "mdi:pause-circle-outline",
+          "hot_water": "mdi:water-boiler",
+          "stopped_temp_reached": "mdi:thermometer-check",
+          "summer_stop": "mdi:weather-sunny",
+          "stopped_timer": "mdi:clock-outline",
+          "stopped_weather": "mdi:weather-partly-cloudy",
+          "door_open": "mdi:door-open",
+          "unknown": "mdi:help-circle-outline"
+        }
+      },
+      "substate": { "default": "mdi:fire-circle" },
+      "substate_time": { "default": "mdi:timer-sand" },
+      "power_pct": { "default": "mdi:fire" },
+      "smoke_temp": { "default": "mdi:smoke" },
+      "shaft_temp": { "default": "mdi:thermometer-low" },
+      "oxygen": { "default": "mdi:molecule" },
+      "oxygen_ref": { "default": "mdi:molecule" },
+      "photo_level": { "default": "mdi:brightness-6" },
+      "fan_speed": { "default": "mdi:fan" },
+      "exhaust_speed": { "default": "mdi:fan-chevron-up" },
+      "consumption_today": { "default": "mdi:grain" },
+      "consumption_total": { "default": "mdi:grain" },
+      "burned_today": { "default": "mdi:grain" },
+      "silo": { "default": "mdi:silo" },
+      "silo_level": { "default": "mdi:silo" },
+      "storage": { "default": "mdi:warehouse" },
+      "storage_bags": { "default": "mdi:sack" },
+      "stock": { "default": "mdi:grain" },
+      "stock_value": { "default": "mdi:cash" },
+      "price_per_kg": { "default": "mdi:tag-outline" },
+      "runout_date": { "default": "mdi:calendar-alert" },
+      "days_left": { "default": "mdi:calendar-clock" },
+      "silo_empty_date": { "default": "mdi:calendar-arrow-right" },
+      "order_recommendation": { "default": "mdi:truck-delivery" },
+      "need_until_season_end": { "default": "mdi:chart-bell-curve-cumulative" },
+      "runout_risk": { "default": "mdi:alert-circle-outline" },
+      "forecast_today": { "default": "mdi:chart-timeline-variant" },
+      "forecast_7d": { "default": "mdi:chart-timeline-variant" },
+      "forecast_30d": { "default": "mdi:chart-timeline-variant" },
+      "heating_limit": { "default": "mdi:thermometer-lines" },
+      "kg_per_degree_day": { "default": "mdi:home-thermometer" },
+      "base_load": { "default": "mdi:water-boiler" },
+      "model_days": { "default": "mdi:brain" }
+    },
+    "binary_sensor": {
+      "burning": { "default": "mdi:fire-off", "state": { "on": "mdi:fire" } },
+      "igniting": { "default": "mdi:lightning-bolt-outline", "state": { "on": "mdi:lightning-bolt" } },
+      "boiler_pump": { "default": "mdi:pump-off", "state": { "on": "mdi:pump" } },
+      "house_pump": { "default": "mdi:pump-off", "state": { "on": "mdi:pump" } },
+      "dhw_valve": { "default": "mdi:valve-closed", "state": { "on": "mdi:valve-open" } },
+      "order_pellets": { "default": "mdi:truck-check", "state": { "on": "mdi:truck-alert" } },
+      "refill_silo": { "default": "mdi:silo", "state": { "on": "mdi:basket-fill" } }
+    },
+    "number": {
+      "fill_amount": { "default": "mdi:basket-fill" },
+      "storage_set": { "default": "mdi:warehouse" },
+      "silo_set": { "default": "mdi:silo" },
+      "boiler_setpoint": { "default": "mdi:thermostat" },
+      "dhw_setpoint": { "default": "mdi:water-thermometer" }
+    },
+    "button": {
+      "fill_silo": { "default": "mdi:basket-fill" },
+      "start": { "default": "mdi:play" },
+      "stop": { "default": "mdi:stop" },
+      "reset_alarm": { "default": "mdi:restart-alert" }
+    }
+  },
+  "services": {
+    "add_delivery": { "service": "mdi:truck-delivery" },
+    "fill_silo": { "service": "mdi:basket-fill" },
+    "set_storage": { "service": "mdi:warehouse" },
+    "set_silo": { "service": "mdi:silo" },
+    "set_setting": { "service": "mdi:cog" },
+    "get_forecast": { "service": "mdi:crystal-ball" }
+  }
+}

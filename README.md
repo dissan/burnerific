@@ -1,3 +1,5 @@
+<img src="icon.png" alt="" width="96" align="right">
+
 # burnerific
 
 A, nah, **THE** Home Assistant integration for NBE pellet boilers.
