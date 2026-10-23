@@ -1,0 +1,733 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Gefundene Kessel",
+        "description": "Wähle deinen Kessel. Die PIN (auf dem Aufkleber der Steuerung) wird nur zum Ändern von Einstellungen und zum Aktualisieren des Silos gebraucht.",
+        "data": {
+          "host": "Kessel",
+          "pin": "PIN"
+        }
+      },
+      "manual": {
+        "title": "Mit dem Kessel verbinden",
+        "description": "Kein Kessel hat im Netzwerk geantwortet. Gib seine IP-Adresse ein (ip:port geht auch). Seriennummer und PIN sind optional.",
+        "data": {
+          "host": "IP-Adresse",
+          "serial": "Seriennummer",
+          "pin": "PIN"
+        }
+      },
+      "pellets": {
+        "title": "Deine Pellets",
+        "description": "Erzähl Burnerific von deinem Vorrat, damit es vorhersagen kann, wann er ausgeht. Alles lässt sich später ändern.",
+        "data": {
+          "initial_storage_kg": "Pellets jetzt im Lager (kg, ohne Silo)",
+          "silo_capacity_kg": "Silokapazität (kg)",
+          "bag_kg": "Sackgröße (kg)",
+          "annual_kg": "Ungefährer Jahresverbrauch (kg)",
+          "weather_entity": "Wettervorhersage"
+        },
+        "data_description": {
+          "annual_kg": "Eine erste Schätzung für das Modell. Es lernt deinen echten Verbrauch innerhalb weniger Wochen."
+        }
+      },
+      "reconfigure": {
+        "title": "Verbindung ändern",
+        "data": {
+          "host": "IP-Adresse",
+          "pin": "PIN (leer behält die aktuelle)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Neue PIN nötig",
+        "description": "{boiler} hat die PIN abgelehnt. Gib die PIN vom Aufkleber der Steuerung ein (oder die am Bedienfeld gesetzte).",
+        "data": {
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der Kessel hat nicht geantwortet. Prüfe die Adresse und ob Home Assistant im selben Netzwerk ist.",
+      "invalid_host": "Keine gültige Adresse.",
+      "invalid_pin": "Der Kessel hat diese PIN abgelehnt."
+    },
+    "abort": {
+      "already_configured": "Dieser Kessel ist bereits eingerichtet.",
+      "reconfigure_successful": "Verbindung aktualisiert.",
+      "reauth_successful": "PIN aktualisiert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Burnerific",
+        "sections": {
+          "boiler": {
+            "name": "Kessel",
+            "data": {
+              "scan_interval": "Abfrageintervall",
+              "stokercloud_user": "StokerCloud-Benutzername (Ausweichlösung)"
+            },
+            "data_description": {
+              "stokercloud_user": "Den Kessel über StokerCloud lesen, wenn das lokale Netzwerk ihn nicht erreicht. Steht in stokercloud.dk/v3/#/<Benutzer>/main-page."
+            }
+          },
+          "weather": {
+            "name": "Wetter",
+            "data": {
+              "weather_entity": "Wettervorhersage",
+              "temperature_entity": "Außentemperaturfühler",
+              "use_open_meteo": "Open-Meteo für Klima, Wind und Sonne nutzen"
+            },
+            "data_description": {
+              "use_open_meteo": "Sendet deinen Standort auf ~1 km gerundet an open-meteo.com."
+            }
+          },
+          "stock": {
+            "name": "Pellets und Silo",
+            "data": {
+              "bag_kg": "Sackgröße (kg)",
+              "silo_capacity_kg": "Silokapazität (kg)",
+              "silo_tracking": "Wer zählt das Silo",
+              "silo_sensor": "Silo-Füllstandssensor",
+              "silo_sensor_empty": "Sensorwert bei leerem Silo",
+              "silo_sensor_full": "Sensorwert bei vollem Silo",
+              "annual_kg": "Ungefährer Jahresverbrauch (kg)",
+              "order_lead_days": "Lieferzeit für Pellets (Tage)",
+              "restock_date": "Nächster Nachkauf (MM-TT)",
+              "apply_calibration": "Zähler der Steuerung mit der gelernten Kalibrierung korrigieren",
+              "split_hot_water": "Warmwasser separat modellieren"
+            },
+            "data_description": {
+              "restock_date": "Wann du wieder Pellets kaufen willst, z. B. wenn die neuen Saisonpreise gelten. Standard 06-01.",
+              "order_lead_days": "'Pellets bestellen' schaltet ein, wenn innerhalb so vieler Tage eine 10-%-Chance besteht, leer zu sein.",
+              "silo_sensor": "Ein Füllstandssensor in Prozent oder ein Abstandssensor über den Pellets (dann die zwei Werte unten ausfüllen)."
+            }
+          },
+          "maintenance": {
+            "name": "Wartung",
+            "data": {
+              "ash_capacity_kg": "Aschelade fasst (kg Asche)",
+              "ash_pct": "Aschegehalt der Pellets",
+              "clean_interval_kg": "Wärmetauscher reinigen alle (kg verbrannt)",
+              "sweep_interval_days": "Schornsteinfeger alle (Tage)",
+              "service_interval_kg": "Brennerwartung alle (kg)",
+              "service_interval_days": "... oder alle (Tage)"
+            }
+          },
+          "money": {
+            "name": "Kosten",
+            "data": {
+              "kwh_per_kg": "Energie pro kg Pellets",
+              "boiler_efficiency": "Kesselwirkungsgrad",
+              "electricity_price": "Strompreis (zum Vergleich)",
+              "heat_pump_cop": "COP der Wärmepumpe (zum Vergleich)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "silo_tracking": {
+      "options": {
+        "boiler": "Die Steuerung (Einstellung Behälterinhalt)",
+        "integration": "Burnerific, aus dem Verbrauchszähler",
+        "sensor": "Ein Silo-Füllstandssensor"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Adresse manuell eingeben"
+      }
+    },
+    "fill_unit": {
+      "options": {
+        "bags": "Säcke",
+        "kg": "kg"
+      }
+    },
+    "task": {
+      "options": {
+        "ash": "Aschelade leeren",
+        "clean": "Wärmetauscher reinigen",
+        "sweep": "Schornsteinfeger",
+        "service": "Brennerwartung"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Zustand",
+        "state": {
+          "waiting": "Bitte warten",
+          "ignition_1": "Zündung 1",
+          "ignition_2": "Zündung 2",
+          "power": "Betrieb",
+          "pause": "Pause",
+          "hot_water": "Warmwasser",
+          "alarm_low_boiler_temp": "Alarm: Kesseltemperatur zu niedrig",
+          "stopped_temp_reached": "Gestoppt, Temperatur erreicht",
+          "summer_stop": "Sommerstopp",
+          "alarm_hot_burner": "Alarm: Brenner zu heiß",
+          "alarm_burner_plug": "Alarm: Brennerstecker oder Schachtfühler",
+          "alarm_ignition": "Alarm: Zündung",
+          "off": "Aus",
+          "alarm_boiler_sensor": "Alarm: Kesselfühler defekt",
+          "alarm_photo_sensor": "Alarm: Fotozelle defekt",
+          "alarm_shaft_sensor": "Alarm: Schachtfühler defekt",
+          "alarm_auger_output": "Alarm: Schneckenausgang L1",
+          "alarm_no_flame_high": "Alarm: keine Flamme bei Volllast",
+          "stopped_external_temp": "Gestoppt durch externe Temperatur",
+          "stopped_timer": "Gestoppt durch Zeitschaltuhr",
+          "stopped_external_contact": "Gestoppt durch externen Kontakt",
+          "stopped_weather": "Gestoppt durch Witterungsführung",
+          "alarm_fan_rpm": "Alarm: Gebläsedrehzahl",
+          "alarm_no_flame_low": "Alarm: keine Flamme bei Teillast",
+          "door_open": "Tür offen",
+          "alarm_overheat": "Alarm: Überhitzungsschutz",
+          "alarm_cascade": "Alarm: Kaskadensteuerung",
+          "alarm_compressor": "Alarm: Kompressordruck",
+          "alarm_back_pressure": "Alarm: Gegendruck",
+          "alarm_air_flow": "Alarm: Luftmenge nicht erreicht",
+          "alarm_exhaust_temp": "Alarm: Abgastemperatur zu hoch",
+          "alarm_ash_drawer": "Alarm: Aschelade fehlt",
+          "air_flow_calibration": "Luftmengenkalibrierung",
+          "alarm_overpressure": "Alarm: Überdruck in der Verbrennung",
+          "alarm_oxygen_sensor": "Alarm: O₂-Sensor defekt",
+          "compressor_cleaning": "Kompressorreinigung",
+          "alarm_ignition_failed": "Alarm: Zündung fehlgeschlagen",
+          "alarm_condensate": "Alarm: Kondensatfalle voll",
+          "unknown": "Unbekannt"
+        }
+      },
+      "substate": {
+        "name": "Unterzustand",
+        "state": {
+          "none": "Keiner",
+          "purging": "Kessel wird vor der Zündung gespült",
+          "ignition_fuel": "Brennstoff für Zündung",
+          "igniter_pulse": "Startimpuls Zünder",
+          "electric_ignition": "Elektrische Zündung",
+          "cooling_boiler": "Kessel kühlt ab",
+          "extinguishing": "Löschen und Brenner kühlen",
+          "fan_cleaning": "Reinigung mit Gebläse",
+          "ash_removal": "Ascheaustragung",
+          "external_contact": "Externer Kontakt",
+          "auger_after_run": "Nachlauf interne Schnecke",
+          "residual_heat_to_dhw": "Restwärme ins Warmwasser",
+          "external_filling": "Externe Befüllung aktiv",
+          "unknown": "Unbekannt"
+        }
+      },
+      "data_source": {
+        "name": "Datenquelle",
+        "state": {
+          "local": "Lokales Netzwerk",
+          "cloud": "StokerCloud"
+        }
+      },
+      "substate_time": {
+        "name": "Restzeit Unterzustand"
+      },
+      "power_pct": {
+        "name": "Leistung"
+      },
+      "power_kw": {
+        "name": "Leistung (kW)"
+      },
+      "boiler_temp": {
+        "name": "Kesseltemperatur"
+      },
+      "boiler_ref": {
+        "name": "Kesselsolltemperatur"
+      },
+      "return_temp": {
+        "name": "Rücklauftemperatur"
+      },
+      "smoke_temp": {
+        "name": "Abgastemperatur"
+      },
+      "shaft_temp": {
+        "name": "Schachttemperatur"
+      },
+      "dhw_temp": {
+        "name": "Warmwassertemperatur"
+      },
+      "dhw_ref": {
+        "name": "Warmwassersolltemperatur"
+      },
+      "outdoor_temp": {
+        "name": "Außentemperatur"
+      },
+      "oxygen": {
+        "name": "Sauerstoff"
+      },
+      "oxygen_ref": {
+        "name": "Sauerstoff-Sollwert"
+      },
+      "photo_level": {
+        "name": "Lichtstärke"
+      },
+      "fan_speed": {
+        "name": "Gebläsedrehzahl"
+      },
+      "exhaust_speed": {
+        "name": "Saugzuggebläse"
+      },
+      "consumption_today": {
+        "name": "Verbrauch heute"
+      },
+      "consumption_total": {
+        "name": "Gesamtverbrauch"
+      },
+      "hot_water_today": {
+        "name": "Warmwasser heute"
+      },
+      "ignitions": {
+        "name": "Zündungen"
+      },
+      "fuel_energy": {
+        "name": "Brennstoffenergie"
+      },
+      "silo": {
+        "name": "Silo"
+      },
+      "silo_level": {
+        "name": "Silofüllstand"
+      },
+      "storage": {
+        "name": "Lager"
+      },
+      "storage_bags": {
+        "name": "Säcke im Lager"
+      },
+      "stock": {
+        "name": "Pellets gesamt"
+      },
+      "stock_value": {
+        "name": "Wert der Pellets"
+      },
+      "price_per_kg": {
+        "name": "Durchschnittlicher Pelletpreis"
+      },
+      "burned_today": {
+        "name": "Heute verbrannt"
+      },
+      "runout_date": {
+        "name": "Pellets gehen aus"
+      },
+      "days_left": {
+        "name": "Tage mit Pellets übrig"
+      },
+      "silo_empty_date": {
+        "name": "Silo leer"
+      },
+      "order_recommendation": {
+        "name": "Bestellen bis zum Nachkauf"
+      },
+      "need_until_season_end": {
+        "name": "Bedarf bis Nachkauf"
+      },
+      "runout_risk": {
+        "name": "Risiko, vor dem Nachkauf leer zu sein"
+      },
+      "forecast_today": {
+        "name": "Erwartet heute"
+      },
+      "forecast_7d": {
+        "name": "Erwartet nächste 7 Tage"
+      },
+      "forecast_30d": {
+        "name": "Erwartet nächste 30 Tage"
+      },
+      "heating_limit": {
+        "name": "Heizgrenze"
+      },
+      "kg_per_degree_day": {
+        "name": "Pellets pro Gradtag"
+      },
+      "base_load": {
+        "name": "Grundlast"
+      },
+      "model_days": {
+        "name": "Gelernte Tage"
+      },
+      "order_by": {
+        "name": "Pellets bestellen bis"
+      },
+      "restock_date": {
+        "name": "Nächster Nachkauf"
+      },
+      "ash_level": {
+        "name": "Aschelade"
+      },
+      "clean_due": {
+        "name": "Wärmetauscher reinigen bis"
+      },
+      "sweep_due": {
+        "name": "Schornsteinfeger fällig"
+      },
+      "service_due": {
+        "name": "Brennerwartung fällig"
+      },
+      "cost_today": {
+        "name": "Kosten heute"
+      },
+      "cost_month": {
+        "name": "Kosten diesen Monat"
+      },
+      "cost_season": {
+        "name": "Kosten diese Saison"
+      },
+      "cost_next_30d": {
+        "name": "Erwartete Kosten nächste 30 Tage"
+      },
+      "fuel_price_kwh": {
+        "name": "Pelletpreis pro kWh"
+      },
+      "heat_price_pellets": {
+        "name": "Wärmepreis, Pellets"
+      },
+      "heat_price_heat_pump": {
+        "name": "Wärmepreis, Wärmepumpe"
+      },
+      "burning_lot": {
+        "name": "Aktuelle Charge"
+      },
+      "normalized_yearly": {
+        "name": "Witterungsbereinigter Jahresverbrauch"
+      },
+      "hot_water_share": {
+        "name": "Warmwasseranteil"
+      },
+      "burned_total": {
+        "name": "Verbrannt (Burnerific)"
+      },
+      "counter_calibration": {
+        "name": "Zählerkalibrierung"
+      },
+      "wind_effect": {
+        "name": "Windeinfluss pro 5 m/s"
+      },
+      "sun_effect": {
+        "name": "Sonnenersparnis"
+      }
+    },
+    "binary_sensor": {
+      "alarm": {
+        "name": "Alarm"
+      },
+      "burning": {
+        "name": "Flamme"
+      },
+      "igniting": {
+        "name": "Zündet"
+      },
+      "boiler_pump": {
+        "name": "Kesselpumpe"
+      },
+      "house_pump": {
+        "name": "Hauspumpe"
+      },
+      "dhw_valve": {
+        "name": "Warmwasserventil"
+      },
+      "order_pellets": {
+        "name": "Pellets bestellen"
+      },
+      "refill_silo": {
+        "name": "Silo befüllen"
+      },
+      "ash_due_now": {
+        "name": "Aschelade leeren"
+      },
+      "clean_due_now": {
+        "name": "Wärmetauscher reinigen"
+      },
+      "sweep_due_now": {
+        "name": "Schornsteinfeger"
+      },
+      "service_due_now": {
+        "name": "Brennerwartung"
+      },
+      "lan_connection": {
+        "name": "LAN-Verbindung"
+      }
+    },
+    "number": {
+      "fill_amount": {
+        "name": "Füllmenge"
+      },
+      "storage_set": {
+        "name": "Pellets im Lager"
+      },
+      "silo_set": {
+        "name": "Pellets im Silo"
+      }
+    },
+    "button": {
+      "fill_silo": {
+        "name": "Silo aus Lager befüllen"
+      },
+      "start": {
+        "name": "Kessel starten"
+      },
+      "stop": {
+        "name": "Kessel stoppen"
+      },
+      "reset_alarm": {
+        "name": "Alarm zurücksetzen"
+      },
+      "ash_done": {
+        "name": "Aschelade geleert"
+      },
+      "clean_done": {
+        "name": "Wärmetauscher gereinigt"
+      },
+      "sweep_done": {
+        "name": "Schornstein gefegt"
+      },
+      "service_done": {
+        "name": "Brenner gewartet"
+      }
+    },
+    "climate": {
+      "boiler": {
+        "name": "Kessel"
+      }
+    },
+    "water_heater": {
+      "hot_water": {
+        "name": "Warmwasser"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Pelletkalender"
+      }
+    }
+  },
+  "issues": {
+    "alarm_out_of_pellets": {
+      "title": "{boiler}: vermutlich keine Pellets mehr",
+      "description": "Der Kessel meldet einen Zündalarm (Code {code}) und das Silo enthält etwa {silo} kg. Silo befüllen, dann den Alarm am Kessel oder mit der Taste Alarm zurücksetzen quittieren."
+    },
+    "alarm_ignition": {
+      "title": "{boiler}: Zündung fehlgeschlagen",
+      "description": "Alarmcode {code}. Im Silo sind noch etwa {silo} kg, also Brenner auf Asche oder Schlacke prüfen und ob der Zünder funktioniert."
+    },
+    "alarm_burner_hot": {
+      "title": "{boiler}: Brenner zu heiß",
+      "description": "Alarmcode {code}. Vor dem Neustart Schnecke und Schachtfühler prüfen: ein heißer Brenner kann Rückbrandgefahr bedeuten."
+    },
+    "alarm_overheat": {
+      "title": "{boiler}: überhitzt",
+      "description": "Alarmcode {code}. Der Überhitzungsschutz hat ausgelöst. Kessel abkühlen lassen, Umwälzung der Pumpen prüfen und Thermostat zurücksetzen."
+    },
+    "alarm_generic": {
+      "title": "{boiler}: Alarm",
+      "description": "Der Kessel meldet Alarmcode {code}. Details stehen im Display des Kessels."
+    }
+  },
+  "exceptions": {
+    "pin_required": {
+      "message": "Hinterlege die PIN des Kessels in der Integration, um Einstellungen zu ändern."
+    },
+    "pin_wrong": {
+      "message": "Der Kessel hat die PIN abgelehnt. Home Assistant fragt nach einer neuen."
+    },
+    "write_failed": {
+      "message": "Der Kessel hat {setting} abgelehnt: {error}"
+    },
+    "amount_required": {
+      "message": "Gib eine Menge in kg oder Säcken an."
+    },
+    "not_enough_storage": {
+      "message": "Nur {storage} kg im Lager, {kg} kg sind nicht möglich."
+    },
+    "nothing_to_fill": {
+      "message": "Nichts zu befüllen: Lager leer oder Silo voll."
+    },
+    "bad_fill_log": {
+      "message": "Das Befüllprotokoll konnte nicht gelesen werden: {error}"
+    },
+    "empty_fill_log": {
+      "message": "Das Befüllprotokoll ist leer."
+    },
+    "entry_not_found": {
+      "message": "Kein geladener Burnerific-Kessel passt."
+    },
+    "entry_ambiguous": {
+      "message": "Mehr als ein Kessel: mit config_entry_id auswählen."
+    }
+  },
+  "services": {
+    "add_delivery": {
+      "name": "Pelletlieferung hinzufügen",
+      "description": "Pellets sind angekommen. Werden als Charge eingelagert und aktualisieren den Durchschnittspreis.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Menge in Kilogramm."
+        },
+        "bags": {
+          "name": "Säcke",
+          "description": "Menge in Säcken (Sackgröße aus den Optionen). Wird zu kg addiert."
+        },
+        "price_per_kg": {
+          "name": "Preis pro kg",
+          "description": "Optional."
+        },
+        "total_price": {
+          "name": "Gesamtpreis",
+          "description": "Optional, wenn kein Preis pro kg angegeben ist."
+        },
+        "supplier": {
+          "name": "Lieferant",
+          "description": "Optional. Zum Vergleich, wie gut die Pellets der Lieferanten brennen."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freitext für das Lagerprotokoll."
+        }
+      }
+    },
+    "fill_silo": {
+      "name": "Silo befüllen",
+      "description": "Pellets ins Silo gefüllt. Werden aus dem Lager genommen und mit PIN an die Steuerung gemeldet.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Menge in kg. kg und Säcke leer lassen, um ganze Säcke bis zur Silokapazität zu füllen."
+        },
+        "bags": {
+          "name": "Säcke",
+          "description": "Menge in Säcken (Sackgröße aus den Optionen). Wird zu kg addiert."
+        },
+        "from_storage": {
+          "name": "Aus dem Lager nehmen",
+          "description": "Ausschalten, wenn die Pellets nicht aus dem erfassten Lager stammen."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freitext für das Lagerprotokoll."
+        }
+      }
+    },
+    "set_storage": {
+      "name": "Lager setzen",
+      "description": "Lagermenge nach dem Zählen korrigieren.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Menge in Kilogramm."
+        },
+        "bags": {
+          "name": "Säcke",
+          "description": "Menge in Säcken (Sackgröße aus den Optionen). Wird zu kg addiert."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freitext für das Lagerprotokoll."
+        }
+      }
+    },
+    "set_silo": {
+      "name": "Siloinhalt setzen",
+      "description": "Menge im Silo korrigieren.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Menge in Kilogramm."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freitext für das Lagerprotokoll."
+        }
+      }
+    },
+    "set_setting": {
+      "name": "Kesseleinstellung ändern",
+      "description": "Beliebige Einstellung der Steuerung schreiben, z. B. boiler.temp. Benötigt die PIN.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "key": {
+          "name": "Einstellung",
+          "description": "gruppe.name, z. B. boiler.temp oder hot_water.temp."
+        },
+        "value": {
+          "name": "Wert",
+          "description": "Neuer Wert."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Pelletprognose abrufen",
+      "description": "Liefert alles: Leerstandsdatum, Tageskurve, Modell, Wartung, Chargen, Saisons und Kosten.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        }
+      }
+    },
+    "import_fills": {
+      "name": "Befüllprotokoll importieren",
+      "description": "Das Modell aus eigenen Notizen lernen lassen: eine Zeile pro Silobefüllung mit Datum und Menge, z. B. '04-10-2025 6'.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "log": {
+          "name": "Befüllprotokoll",
+          "description": "Datum (Tag-Monat-Jahr oder Jahr-Monat-Tag) und Menge pro Zeile."
+        },
+        "unit": {
+          "name": "Mengen sind in",
+          "description": "Säcke (Sackgröße aus den Optionen) oder Kilogramm."
+        }
+      }
+    },
+    "maintenance_done": {
+      "name": "Wartung erledigt",
+      "description": "Eine Wartungsaufgabe als erledigt markieren, optional mit früherem Datum.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kessel",
+          "description": "Welcher Kessel. Nur bei mehreren nötig."
+        },
+        "task": {
+          "name": "Aufgabe",
+          "description": "Welche Aufgabe."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Wann es erledigt wurde. Standard heute."
+        }
+      }
+    }
+  }
+}

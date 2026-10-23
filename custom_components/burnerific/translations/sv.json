@@ -1,0 +1,733 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Hittade pannor",
+        "description": "Välj din panna. PIN-koden (på dekalen på styrningen) behövs bara för att ändra inställningar och uppdatera silon i styrningen.",
+        "data": {
+          "host": "Panna",
+          "pin": "PIN"
+        }
+      },
+      "manual": {
+        "title": "Anslut till pannan",
+        "description": "Ingen panna svarade på nätverket. Ange dess IP-adress (ip:port fungerar också). Serienummer och PIN är valfria.",
+        "data": {
+          "host": "IP-adress",
+          "serial": "Serienummer",
+          "pin": "PIN"
+        }
+      },
+      "pellets": {
+        "title": "Dina pellets",
+        "description": "Berätta för Burnerific om ditt lager så att den kan förutsäga när det tar slut. Allt kan ändras senare.",
+        "data": {
+          "initial_storage_kg": "Pellets i lager nu (kg, utan silon)",
+          "silo_capacity_kg": "Silokapacitet (kg)",
+          "bag_kg": "Säckstorlek (kg)",
+          "annual_kg": "Ungefärlig årsförbrukning (kg)",
+          "weather_entity": "Väderprognos"
+        },
+        "data_description": {
+          "annual_kg": "En första gissning för modellen. Den lär sig din verkliga förbrukning inom några veckor."
+        }
+      },
+      "reconfigure": {
+        "title": "Ändra anslutning",
+        "data": {
+          "host": "IP-adress",
+          "pin": "PIN (tom behåller den nuvarande)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ny PIN behövs",
+        "description": "{boiler} avvisade PIN-koden. Ange PIN-koden från dekalen på styrningen (eller den du ställt in på panelen).",
+        "data": {
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Pannan svarade inte. Kontrollera adressen och att Home Assistant är på samma nätverk.",
+      "invalid_host": "Inte en giltig adress.",
+      "invalid_pin": "Pannan avvisade PIN-koden."
+    },
+    "abort": {
+      "already_configured": "Den här pannan är redan konfigurerad.",
+      "reconfigure_successful": "Anslutningen är uppdaterad.",
+      "reauth_successful": "PIN-koden är uppdaterad."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Burnerific",
+        "sections": {
+          "boiler": {
+            "name": "Panna",
+            "data": {
+              "scan_interval": "Uppdateringsintervall",
+              "stokercloud_user": "StokerCloud-användarnamn (reserv)"
+            },
+            "data_description": {
+              "stokercloud_user": "Läs pannan via StokerCloud när det lokala nätverket inte når den. Finns i stokercloud.dk/v3/#/<användare>/main-page."
+            }
+          },
+          "weather": {
+            "name": "Väder",
+            "data": {
+              "weather_entity": "Väderprognos",
+              "temperature_entity": "Utetemperaturgivare",
+              "use_open_meteo": "Använd Open-Meteo för klimat, vind och sol"
+            },
+            "data_description": {
+              "use_open_meteo": "Skickar din plats avrundad till ~1 km till open-meteo.com."
+            }
+          },
+          "stock": {
+            "name": "Pellets och silo",
+            "data": {
+              "bag_kg": "Säckstorlek (kg)",
+              "silo_capacity_kg": "Silokapacitet (kg)",
+              "silo_tracking": "Vem räknar silon",
+              "silo_sensor": "Silonivågivare",
+              "silo_sensor_empty": "Givarvärde vid tom silo",
+              "silo_sensor_full": "Givarvärde vid full silo",
+              "annual_kg": "Ungefärlig årsförbrukning (kg)",
+              "order_lead_days": "Leveranstid för pellets (dagar)",
+              "restock_date": "Nästa påfyllning (MM-DD)",
+              "apply_calibration": "Korrigera styrningens räknare med den inlärda kalibreringen",
+              "split_hot_water": "Modellera varmvatten separat"
+            },
+            "data_description": {
+              "restock_date": "När du planerar att köpa pellets igen, t.ex. när nya säsongspriser börjar. Standard 06-01.",
+              "order_lead_days": "'Beställ pellets' slås på när det finns 10 % risk att ta slut inom så många dagar.",
+              "silo_sensor": "En nivågivare i procent, eller en avståndsgivare ovanför pelletsen (fyll då i de två värdena nedan)."
+            }
+          },
+          "maintenance": {
+            "name": "Underhåll",
+            "data": {
+              "ash_capacity_kg": "Asklådan rymmer (kg aska)",
+              "ash_pct": "Askhalt i pelletsen",
+              "clean_interval_kg": "Rengör värmeväxlaren var (kg bränt)",
+              "sweep_interval_days": "Sotning var (dagar)",
+              "service_interval_kg": "Service av brännare var (kg)",
+              "service_interval_days": "... eller var (dagar)"
+            }
+          },
+          "money": {
+            "name": "Ekonomi",
+            "data": {
+              "kwh_per_kg": "Energi per kg pellets",
+              "boiler_efficiency": "Pannans verkningsgrad",
+              "electricity_price": "Elpris (för jämförelse)",
+              "heat_pump_cop": "Värmepumpens COP (för jämförelse)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "silo_tracking": {
+      "options": {
+        "boiler": "Styrningen (inställning för magasininnehåll)",
+        "integration": "Burnerific, från förbrukningsräknaren",
+        "sensor": "En silonivågivare"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Ange adress manuellt"
+      }
+    },
+    "fill_unit": {
+      "options": {
+        "bags": "Säckar",
+        "kg": "kg"
+      }
+    },
+    "task": {
+      "options": {
+        "ash": "Töm asklådan",
+        "clean": "Rengör värmeväxlaren",
+        "sweep": "Sotning",
+        "service": "Service av brännare"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Tillstånd",
+        "state": {
+          "waiting": "Vänta",
+          "ignition_1": "Tändning 1",
+          "ignition_2": "Tändning 2",
+          "power": "Drift",
+          "pause": "Paus",
+          "hot_water": "Varmvatten",
+          "alarm_low_boiler_temp": "Larm: låg pannatemperatur",
+          "stopped_temp_reached": "Stoppad, temperatur uppnådd",
+          "summer_stop": "Sommarstopp",
+          "alarm_hot_burner": "Larm: varm brännare",
+          "alarm_burner_plug": "Larm: brännarkontakt eller schaktgivare",
+          "alarm_ignition": "Larm: tändning",
+          "off": "Av",
+          "alarm_boiler_sensor": "Larm: fel på pannagivare",
+          "alarm_photo_sensor": "Larm: fel på fotocell",
+          "alarm_shaft_sensor": "Larm: fel på schaktgivare",
+          "alarm_auger_output": "Larm: skruvutgång L1",
+          "alarm_no_flame_high": "Larm: ingen låga vid hög effekt",
+          "stopped_external_temp": "Stoppad av extern temperatur",
+          "stopped_timer": "Stoppad av timer",
+          "stopped_external_contact": "Stoppad av extern kontakt",
+          "stopped_weather": "Stoppad av väderkompensering",
+          "alarm_fan_rpm": "Larm: fel på fläktvarvtal",
+          "alarm_no_flame_low": "Larm: ingen låga vid låg effekt",
+          "door_open": "Lucka öppen",
+          "alarm_overheat": "Larm: överhettningstermostat",
+          "alarm_cascade": "Larm: kaskadstyrning",
+          "alarm_compressor": "Larm: kompressortryck",
+          "alarm_back_pressure": "Larm: mottryck",
+          "alarm_air_flow": "Larm: luftflöde ej uppnått",
+          "alarm_exhaust_temp": "Larm: för hög rökgastemperatur",
+          "alarm_ash_drawer": "Larm: asklåda saknas",
+          "air_flow_calibration": "Kalibrering av luftflöde",
+          "alarm_overpressure": "Larm: övertryck i förbränningen",
+          "alarm_oxygen_sensor": "Larm: fel på O₂-givare",
+          "compressor_cleaning": "Kompressorrengöring",
+          "alarm_ignition_failed": "Larm: tändning misslyckades",
+          "alarm_condensate": "Larm: kondensuppsamlare full",
+          "unknown": "Okänd"
+        }
+      },
+      "substate": {
+        "name": "Deltillstånd",
+        "state": {
+          "none": "Ingen",
+          "purging": "Ventilerar pannan före tändning",
+          "ignition_fuel": "Bränsle för tändning",
+          "igniter_pulse": "Startpuls tändelement",
+          "electric_ignition": "Eltändning",
+          "cooling_boiler": "Kyler pannan",
+          "extinguishing": "Släcker och kyler brännaren",
+          "fan_cleaning": "Rengöring med fläkt",
+          "ash_removal": "Asktömning",
+          "external_contact": "Extern kontakt",
+          "auger_after_run": "Efterkörning intern skruv",
+          "residual_heat_to_dhw": "Överför restvärme till varmvatten",
+          "external_filling": "Extern påfyllning aktiv",
+          "unknown": "Okänd"
+        }
+      },
+      "data_source": {
+        "name": "Datakälla",
+        "state": {
+          "local": "Lokalt nätverk",
+          "cloud": "StokerCloud"
+        }
+      },
+      "substate_time": {
+        "name": "Tid kvar i deltillstånd"
+      },
+      "power_pct": {
+        "name": "Effekt"
+      },
+      "power_kw": {
+        "name": "Effekt (kW)"
+      },
+      "boiler_temp": {
+        "name": "Pannatemperatur"
+      },
+      "boiler_ref": {
+        "name": "Börvärde panna"
+      },
+      "return_temp": {
+        "name": "Returtemperatur"
+      },
+      "smoke_temp": {
+        "name": "Rökgastemperatur"
+      },
+      "shaft_temp": {
+        "name": "Schakttemperatur"
+      },
+      "dhw_temp": {
+        "name": "Varmvattentemperatur"
+      },
+      "dhw_ref": {
+        "name": "Börvärde varmvatten"
+      },
+      "outdoor_temp": {
+        "name": "Utetemperatur"
+      },
+      "oxygen": {
+        "name": "Syre"
+      },
+      "oxygen_ref": {
+        "name": "Börvärde syre"
+      },
+      "photo_level": {
+        "name": "Ljusnivå"
+      },
+      "fan_speed": {
+        "name": "Fläkthastighet"
+      },
+      "exhaust_speed": {
+        "name": "Rökgasfläkt"
+      },
+      "consumption_today": {
+        "name": "Förbrukning idag"
+      },
+      "consumption_total": {
+        "name": "Total förbrukning"
+      },
+      "hot_water_today": {
+        "name": "Varmvatten idag"
+      },
+      "ignitions": {
+        "name": "Tändningar"
+      },
+      "fuel_energy": {
+        "name": "Energi i bränsle"
+      },
+      "silo": {
+        "name": "Silo"
+      },
+      "silo_level": {
+        "name": "Silonivå"
+      },
+      "storage": {
+        "name": "Lager"
+      },
+      "storage_bags": {
+        "name": "Säckar i lager"
+      },
+      "stock": {
+        "name": "Pellets totalt"
+      },
+      "stock_value": {
+        "name": "Värde av pellets"
+      },
+      "price_per_kg": {
+        "name": "Genomsnittligt pelletspris"
+      },
+      "burned_today": {
+        "name": "Bränt idag"
+      },
+      "runout_date": {
+        "name": "Pelletsen tar slut"
+      },
+      "days_left": {
+        "name": "Dagar med pellets kvar"
+      },
+      "silo_empty_date": {
+        "name": "Silo tom"
+      },
+      "order_recommendation": {
+        "name": "Beställ för att räcka till påfyllning"
+      },
+      "need_until_season_end": {
+        "name": "Behov till påfyllning"
+      },
+      "runout_risk": {
+        "name": "Risk att ta slut före påfyllning"
+      },
+      "forecast_today": {
+        "name": "Förväntat idag"
+      },
+      "forecast_7d": {
+        "name": "Förväntat kommande 7 dagar"
+      },
+      "forecast_30d": {
+        "name": "Förväntat kommande 30 dagar"
+      },
+      "heating_limit": {
+        "name": "Värmegräns"
+      },
+      "kg_per_degree_day": {
+        "name": "Pellets per graddag"
+      },
+      "base_load": {
+        "name": "Grundförbrukning"
+      },
+      "model_days": {
+        "name": "Inlärda dagar"
+      },
+      "order_by": {
+        "name": "Beställ pellets senast"
+      },
+      "restock_date": {
+        "name": "Nästa påfyllning"
+      },
+      "ash_level": {
+        "name": "Asklåda"
+      },
+      "clean_due": {
+        "name": "Rengör värmeväxlaren senast"
+      },
+      "sweep_due": {
+        "name": "Sotning senast"
+      },
+      "service_due": {
+        "name": "Service av brännare senast"
+      },
+      "cost_today": {
+        "name": "Kostnad idag"
+      },
+      "cost_month": {
+        "name": "Kostnad denna månad"
+      },
+      "cost_season": {
+        "name": "Kostnad denna säsong"
+      },
+      "cost_next_30d": {
+        "name": "Förväntad kostnad kommande 30 dagar"
+      },
+      "fuel_price_kwh": {
+        "name": "Pelletspris per kWh"
+      },
+      "heat_price_pellets": {
+        "name": "Värmepris, pellets"
+      },
+      "heat_price_heat_pump": {
+        "name": "Värmepris, värmepump"
+      },
+      "burning_lot": {
+        "name": "Parti som bränns"
+      },
+      "normalized_yearly": {
+        "name": "Årsförbrukning, väderkorrigerad"
+      },
+      "hot_water_share": {
+        "name": "Andel varmvatten"
+      },
+      "burned_total": {
+        "name": "Bränt (Burnerific)"
+      },
+      "counter_calibration": {
+        "name": "Kalibrering av räknare"
+      },
+      "wind_effect": {
+        "name": "Vindeffekt per 5 m/s"
+      },
+      "sun_effect": {
+        "name": "Solbesparing"
+      }
+    },
+    "binary_sensor": {
+      "alarm": {
+        "name": "Larm"
+      },
+      "burning": {
+        "name": "Låga"
+      },
+      "igniting": {
+        "name": "Tänder"
+      },
+      "boiler_pump": {
+        "name": "Pannpump"
+      },
+      "house_pump": {
+        "name": "Huspump"
+      },
+      "dhw_valve": {
+        "name": "Varmvattenventil"
+      },
+      "order_pellets": {
+        "name": "Beställ pellets"
+      },
+      "refill_silo": {
+        "name": "Fyll silon"
+      },
+      "ash_due_now": {
+        "name": "Töm asklådan"
+      },
+      "clean_due_now": {
+        "name": "Rengör värmeväxlaren"
+      },
+      "sweep_due_now": {
+        "name": "Sotning"
+      },
+      "service_due_now": {
+        "name": "Service av brännare"
+      },
+      "lan_connection": {
+        "name": "LAN-anslutning"
+      }
+    },
+    "number": {
+      "fill_amount": {
+        "name": "Påfyllningsmängd"
+      },
+      "storage_set": {
+        "name": "Pellets i lager"
+      },
+      "silo_set": {
+        "name": "Pellets i silo"
+      }
+    },
+    "button": {
+      "fill_silo": {
+        "name": "Fyll silon från lager"
+      },
+      "start": {
+        "name": "Starta pannan"
+      },
+      "stop": {
+        "name": "Stoppa pannan"
+      },
+      "reset_alarm": {
+        "name": "Återställ larm"
+      },
+      "ash_done": {
+        "name": "Asklådan tömd"
+      },
+      "clean_done": {
+        "name": "Värmeväxlaren rengjord"
+      },
+      "sweep_done": {
+        "name": "Skorsten sotad"
+      },
+      "service_done": {
+        "name": "Brännare servad"
+      }
+    },
+    "climate": {
+      "boiler": {
+        "name": "Panna"
+      }
+    },
+    "water_heater": {
+      "hot_water": {
+        "name": "Varmvatten"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Pelletskalender"
+      }
+    }
+  },
+  "issues": {
+    "alarm_out_of_pellets": {
+      "title": "{boiler}: troligen slut på pellets",
+      "description": "Pannan larmar för tändning (kod {code}) och silon har ungefär {silo} kg. Fyll silon och återställ sedan larmet på pannan eller med knappen Återställ larm."
+    },
+    "alarm_ignition": {
+      "title": "{boiler}: tändning misslyckades",
+      "description": "Larmkod {code}. Det finns fortfarande ungefär {silo} kg i silon, så kontrollera aska eller slagg i brännaren och att tändelementet fungerar."
+    },
+    "alarm_burner_hot": {
+      "title": "{boiler}: brännaren för varm",
+      "description": "Larmkod {code}. Kontrollera skruven och schaktgivaren innan omstart: en varm brännare kan innebära risk för bakbrand."
+    },
+    "alarm_overheat": {
+      "title": "{boiler}: överhettad",
+      "description": "Larmkod {code}. Överhettningstermostaten har löst ut. Låt pannan svalna, kontrollera att pumparna cirkulerar och återställ termostaten."
+    },
+    "alarm_generic": {
+      "title": "{boiler}: larm",
+      "description": "Pannan larmar med kod {code}. Se pannans display för detaljer."
+    }
+  },
+  "exceptions": {
+    "pin_required": {
+      "message": "Ange pannans PIN i integrationen för att ändra inställningar."
+    },
+    "pin_wrong": {
+      "message": "Pannan avvisade PIN-koden. Home Assistant ber om en ny."
+    },
+    "write_failed": {
+      "message": "Pannan avvisade {setting}: {error}"
+    },
+    "amount_required": {
+      "message": "Ange en mängd i kg eller säckar."
+    },
+    "not_enough_storage": {
+      "message": "Bara {storage} kg i lager, kan inte ta {kg} kg."
+    },
+    "nothing_to_fill": {
+      "message": "Inget att fylla: lagret är tomt eller silon är full."
+    },
+    "bad_fill_log": {
+      "message": "Kunde inte läsa påfyllningsloggen: {error}"
+    },
+    "empty_fill_log": {
+      "message": "Påfyllningsloggen har inga rader."
+    },
+    "entry_not_found": {
+      "message": "Ingen laddad Burnerific-panna matchar."
+    },
+    "entry_ambiguous": {
+      "message": "Mer än en panna: ange vilken med config_entry_id."
+    }
+  },
+  "services": {
+    "add_delivery": {
+      "name": "Lägg till pelletsleverans",
+      "description": "Pellets har levererats. Läggs i lagret som ett parti och uppdaterar snittpriset.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mängd i kilo."
+        },
+        "bags": {
+          "name": "Säckar",
+          "description": "Mängd i säckar (säckstorlek från inställningarna). Läggs till kg."
+        },
+        "price_per_kg": {
+          "name": "Pris per kg",
+          "description": "Valfri."
+        },
+        "total_price": {
+          "name": "Totalpris",
+          "description": "Valfri, används om pris per kg saknas."
+        },
+        "supplier": {
+          "name": "Leverantör",
+          "description": "Valfri. Används för att jämföra hur bra leverantörernas pellets brinner."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Fritext som sparas i lagerloggen."
+        }
+      }
+    },
+    "fill_silo": {
+      "name": "Fyll silon",
+      "description": "Pellets har fyllts i silon. Tas från lagret och skrivs till styrningen om PIN finns.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mängd i kilo. Lämna kg och säckar tomma för att fylla hela säckar upp till silons kapacitet."
+        },
+        "bags": {
+          "name": "Säckar",
+          "description": "Mängd i säckar (säckstorlek från inställningarna). Läggs till kg."
+        },
+        "from_storage": {
+          "name": "Ta från lager",
+          "description": "Stäng av om pelletsen inte kom från det spårade lagret."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Fritext som sparas i lagerloggen."
+        }
+      }
+    },
+    "set_storage": {
+      "name": "Ange lager",
+      "description": "Korrigera mängden i lager efter inventering.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mängd i kilo."
+        },
+        "bags": {
+          "name": "Säckar",
+          "description": "Mängd i säckar (säckstorlek från inställningarna). Läggs till kg."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Fritext som sparas i lagerloggen."
+        }
+      }
+    },
+    "set_silo": {
+      "name": "Ange siloinnehåll",
+      "description": "Korrigera mängden i silon.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mängd i kilo."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Fritext som sparas i lagerloggen."
+        }
+      }
+    },
+    "set_setting": {
+      "name": "Ändra pannans inställning",
+      "description": "Skriv valfri inställning i styrningen, t.ex. boiler.temp. Kräver PIN.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "key": {
+          "name": "Inställning",
+          "description": "grupp.namn, t.ex. boiler.temp eller hot_water.temp."
+        },
+        "value": {
+          "name": "Värde",
+          "description": "Nytt värde."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Hämta pelletsprognos",
+      "description": "Returnerar allt: när pelletsen tar slut, daglig kurva, modell, underhåll, partier, säsonger och kostnader.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        }
+      }
+    },
+    "import_fills": {
+      "name": "Importera påfyllningslogg",
+      "description": "Lär modellen från dina egna anteckningar: en rad per silopåfyllning med datum och mängd, t.ex. '04-10-2025 6'.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "log": {
+          "name": "Påfyllningslogg",
+          "description": "Datum (dag-månad-år eller år-månad-dag) och mängd per rad."
+        },
+        "unit": {
+          "name": "Mängder är i",
+          "description": "Säckar (säckstorlek från inställningarna) eller kilo."
+        }
+      }
+    },
+    "maintenance_done": {
+      "name": "Underhåll utfört",
+      "description": "Markera en underhållsuppgift som utförd, ev. ett tidigare datum.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Panna",
+          "description": "Vilken panna. Behövs bara med flera."
+        },
+        "task": {
+          "name": "Uppgift",
+          "description": "Vilken uppgift."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "När det gjordes. Standard idag."
+        }
+      }
+    }
+  }
+}

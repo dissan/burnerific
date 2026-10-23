@@ -18,10 +18,10 @@ spread (P10 = only 10 % chance it happens earlier).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date, timedelta
 import math
 import random
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 from .climate import ClimateModel
 from .consumption import SMOOTHING, ConsumptionModel
@@ -38,6 +38,9 @@ class ForecastInput:
     stock_kg: float
     silo_kg: float | None
     temp_forecast: dict[date, float] = field(default_factory=dict)
+    wind_forecast: dict[date, float] = field(default_factory=dict)  # daily max wind, m/s
+    sun_forecast: dict[date, float] = field(default_factory=dict)  # MJ/m²
+    extra_daily_kg: float = 0.0  # burn the model does not cover (hot water, when split off)
     last_temp_eff: float | None = None
     burned_today_kg: float = 0.0
     season_end: date | None = None
@@ -45,6 +48,8 @@ class ForecastInput:
     paths: int = 400
     seed: int | None = None
     curve_days: int = 30
+    band_days: int = 180
+    band_step: int = 3
 
 
 @dataclass(slots=True)
@@ -61,6 +66,7 @@ class ForecastResult:
     prob_runout_before_season_end: float | None
     curve: list[dict]  # expected kg/day and temperature, for charts
     paths: int
+    bands: list[dict] = field(default_factory=list)  # remaining stock p10/p50/p90 every few days
 
 
 def default_season_end(today: date, latitude: float | None) -> date:
@@ -86,6 +92,8 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
     days = [inp.today + timedelta(days=i) for i in range(horizon)]
     clim_mean = [climate.mean(d) for d in days]
     clim_sd = [climate.sd(d) for d in days]
+    wind = [inp.wind_forecast.get(d, climate.wind_mean) for d in days]
+    sun = [inp.sun_forecast.get(d, climate.sun(d)) for d in days]
     fc = [inp.temp_forecast.get(d) for d in days]
     last_fc = max((i for i, t in enumerate(fc) if t is not None), default=-1)
     phi = climate.phi
@@ -103,12 +111,17 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
     needs: list[float] = []
     curve_kg = [0.0] * curve_n
     curve_t = [0.0] * curve_n
+    checkpoints = list(range(0, min(inp.band_days, horizon), max(1, inp.band_step)))
+    band_paths: list[list[float]] = []
+    checkpoint_set = set(checkpoints)
     sum_today = sum_7 = sum_30 = 0.0
     n = max(20, inp.paths)
 
     for _ in range(n):
-        limit, base, k, sigma = model.sample(rng)
-        ref = max(1e-6, base + k * max(1.0, limit - 2.0))  # a typical winter day
+        draw = model.sample(rng)
+        sigma = draw.sigma
+        ref = max(1e-6, draw.kg(2.0, None, None, model.wind_ref))  # burn on a 2 °C day
+        remaining_at: list[float] = []
         teff = inp.last_temp_eff
         err = rng.gauss(0.0, 1.0)
         anom = 0.0
@@ -116,7 +129,7 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
         run_t = math.inf
         silo_t = math.inf if silo is not None else math.nan
         need: float | None = None
-        stop_at = max(curve_n, 30, (season_idx or 0) + 1)
+        stop_at = max(curve_n, 30, (season_idx or 0) + 1, (checkpoints[-1] + 1) if checkpoints else 0)
         for i in range(horizon):
             if i == season_idx:
                 need = cum
@@ -132,10 +145,10 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
                 anom = phi * anom + shock * sd * rng.gauss(0.0, 1.0)
                 temp = m + anom
             teff = temp if teff is None else SMOOTHING * temp + (1 - SMOOTHING) * teff
-            mean = base + k * max(0.0, limit - teff)
+            mean = draw.kg(teff, wind[i], sun[i], model.wind_ref)
             # σ is fitted mostly on heating days. Let the noise shrink like √mean on mild days
             # (burn is a count of auger runs), otherwise clipping at 0 would inflate summer burn.
-            kg = max(0.0, mean + sigma * rng.gauss(0.0, 1.0) * min(1.0, math.sqrt(mean / ref)))
+            kg = max(0.0, mean + sigma * rng.gauss(0.0, 1.0) * min(1.0, math.sqrt(mean / ref))) + inp.extra_daily_kg
             if i == 0:
                 kg *= frac_today
                 sum_today += kg
@@ -146,6 +159,8 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
             if i < curve_n:
                 curve_kg[i] += kg
                 curve_t[i] += temp
+            if i in checkpoint_set:
+                remaining_at.append(max(0.0, stock - cum))
             prev = cum
             cum += kg
             if silo is not None and silo_t == math.inf and cum >= silo:
@@ -154,6 +169,8 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
                 run_t = i + ((stock - prev) / kg if kg > 0 else 0.0)
             if run_t != math.inf and (silo is None or silo_t != math.inf) and i + 1 >= stop_at:
                 break
+        remaining_at += [max(0.0, stock - cum)] * (len(checkpoints) - len(remaining_at))
+        band_paths.append(remaining_at)
         runouts.append(run_t)
         if silo is not None:
             silo_outs.append(silo_t)
@@ -182,6 +199,12 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
         {"date": days[i].isoformat(), "kg": round(curve_kg[i] / n, 2), "temp": round(curve_t[i] / n, 1)}
         for i in range(curve_n)
     ]
+    bands = []
+    for j, i in enumerate(checkpoints):
+        col = sorted(p[j] for p in band_paths)
+        bands.append({"date": days[i].isoformat(), **{k: round(_quantile(col, q), 1) for k, q in qs.items()}})
+        if col[-1] <= 0:
+            break
     return ForecastResult(
         runout=runout,
         days_left=days_left,
@@ -195,4 +218,5 @@ def run(inp: ForecastInput, model: ConsumptionModel, climate: ClimateModel) -> F
         prob_runout_before_season_end=None if prob is None else round(prob, 3),
         curve=curve,
         paths=n,
+        bands=bands,
     )

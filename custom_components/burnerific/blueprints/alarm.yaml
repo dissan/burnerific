@@ -1,0 +1,43 @@
+blueprint:
+  name: Burnerific - boiler alarm
+  description: >
+    Sends a phone notification when the boiler raises an alarm, with a hint at
+    the likely cause (for example "probably out of pellets" when an ignition
+    fails with an empty silo).
+  domain: automation
+  source_url: https://github.com/dissan/burnerific/blob/main/custom_components/burnerific/blueprints/alarm.yaml
+  input:
+    state_sensor:
+      name: Boiler state
+      description: The "State" sensor of your boiler (used for the alarm text).
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: sensor
+    phone:
+      name: Phone
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+
+triggers:
+  - trigger: event
+    event_type: burnerific_alarm
+
+actions:
+  - variables:
+      state_entity: !input state_sensor
+      hints:
+        out_of_pellets: "The silo is (nearly) empty: probably out of pellets. Fill the silo and reset the alarm."
+        ignition: "Ignition failed. Check for pellets in the silo, ash in the burner and the igniter."
+        burner_hot: "The burner got too hot. Check the auger and the shaft sensor before restarting."
+        overheat: "The overheat thermostat tripped. Let the boiler cool and check circulation."
+        generic: "Check the boiler display for details."
+  - domain: mobile_app
+    type: notify
+    device_id: !input phone
+    title: "Boiler alarm"
+    message: >
+      {{ state_translated(state_entity) }}. {{ hints[trigger.event.data.hint] | default(hints.generic) }}

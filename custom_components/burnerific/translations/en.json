@@ -11,7 +11,7 @@
       },
       "manual": {
         "title": "Connect to the boiler",
-        "description": "No boiler answered the broadcast. Enter its IP address. Serial and PIN are optional.",
+        "description": "No boiler answered on the network. Enter its IP address (ip:port works too). Serial and PIN are optional.",
         "data": {
           "host": "IP address",
           "serial": "Serial number",
@@ -38,39 +38,93 @@
           "host": "IP address",
           "pin": "PIN (blank keeps the current one)"
         }
+      },
+      "reauth_confirm": {
+        "title": "New PIN needed",
+        "description": "{boiler} refused the PIN. Enter the PIN from the sticker on the controller (or the one you set on its panel).",
+        "data": {
+          "pin": "PIN"
+        }
       }
     },
     "error": {
       "cannot_connect": "The boiler did not answer. Check the address and that Home Assistant is on the same network.",
-      "invalid_host": "Not a valid address."
+      "invalid_host": "Not a valid address.",
+      "invalid_pin": "The boiler refused this PIN."
     },
     "abort": {
       "already_configured": "This boiler is already set up.",
-      "reconfigure_successful": "Connection updated."
+      "reconfigure_successful": "Connection updated.",
+      "reauth_successful": "PIN updated."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Burnerific",
-        "data": {
-          "scan_interval": "Poll interval",
-          "weather_entity": "Weather forecast",
-          "temperature_entity": "Outdoor temperature sensor",
-          "use_open_meteo": "Use Open-Meteo for climate history and long forecast",
-          "bag_kg": "Bag size (kg)",
-          "silo_capacity_kg": "Silo capacity (kg)",
-          "silo_tracking": "Who counts the silo",
-          "annual_kg": "Rough yearly consumption (kg)",
-          "order_lead_days": "Delivery time for pellets (days)",
-          "season_end": "Heating season ends (MM-DD)",
-          "kwh_per_kg": "Energy per kg pellets"
-        },
-        "data_description": {
-          "temperature_entity": "Used instead of the boiler's outdoor sensor for learning.",
-          "use_open_meteo": "Sends your location rounded to ~1 km to open-meteo.com.",
-          "season_end": "Default 06-01 (12-01 in the southern hemisphere).",
-          "order_lead_days": "'Order pellets' turns on when there is a 10% chance of running dry within this many days."
+        "sections": {
+          "boiler": {
+            "name": "Boiler",
+            "data": {
+              "scan_interval": "Poll interval",
+              "stokercloud_user": "StokerCloud user name (fallback)"
+            },
+            "data_description": {
+              "stokercloud_user": "Read the boiler through StokerCloud when the local network can't reach it. Find it in stokercloud.dk/v3/#/<user>/main-page."
+            }
+          },
+          "weather": {
+            "name": "Weather",
+            "data": {
+              "weather_entity": "Weather forecast",
+              "temperature_entity": "Outdoor temperature sensor",
+              "use_open_meteo": "Use Open-Meteo for climate, wind and sun"
+            },
+            "data_description": {
+              "use_open_meteo": "Sends your location rounded to ~1 km to open-meteo.com."
+            }
+          },
+          "stock": {
+            "name": "Pellets and silo",
+            "data": {
+              "bag_kg": "Bag size (kg)",
+              "silo_capacity_kg": "Silo capacity (kg)",
+              "silo_tracking": "Who counts the silo",
+              "silo_sensor": "Silo level sensor",
+              "silo_sensor_empty": "Sensor reading when empty",
+              "silo_sensor_full": "Sensor reading when full",
+              "annual_kg": "Rough yearly consumption (kg)",
+              "order_lead_days": "Delivery time for pellets (days)",
+              "restock_date": "Next restock date (MM-DD)",
+              "apply_calibration": "Correct the controller's counter with the learned calibration",
+              "split_hot_water": "Model hot water separately"
+            },
+            "data_description": {
+              "restock_date": "When you plan to buy pellets again, e.g. when new-season prices start. Default 06-01.",
+              "order_lead_days": "'Order pellets' turns on when there is a 10% chance of running dry within this many days.",
+              "silo_sensor": "A level sensor in percent, or a distance sensor above the pellets (then fill in the two readings below)."
+            }
+          },
+          "maintenance": {
+            "name": "Maintenance",
+            "data": {
+              "ash_capacity_kg": "Ash drawer holds (kg ash)",
+              "ash_pct": "Ash content of the pellets",
+              "clean_interval_kg": "Clean heat exchanger every (kg burned)",
+              "sweep_interval_days": "Chimney sweep every (days)",
+              "service_interval_kg": "Burner service every (kg)",
+              "service_interval_days": "... or every (days)"
+            }
+          },
+          "money": {
+            "name": "Money",
+            "data": {
+              "kwh_per_kg": "Energy per kg pellets",
+              "boiler_efficiency": "Boiler efficiency",
+              "electricity_price": "Electricity price (for comparison)",
+              "heat_pump_cop": "Heat pump COP (for comparison)"
+            }
+          }
         }
       }
     }
@@ -79,12 +133,27 @@
     "silo_tracking": {
       "options": {
         "boiler": "The controller (hopper content setting)",
-        "integration": "Burnerific, from the burn counter"
+        "integration": "Burnerific, from the burn counter",
+        "sensor": "A silo level sensor"
       }
     },
     "pick": {
       "options": {
         "manual": "Enter address manually"
+      }
+    },
+    "fill_unit": {
+      "options": {
+        "bags": "Bags",
+        "kg": "kg"
+      }
+    },
+    "task": {
+      "options": {
+        "ash": "Empty the ash drawer",
+        "clean": "Clean the heat exchanger",
+        "sweep": "Chimney sweep",
+        "service": "Burner service"
       }
     }
   },
@@ -153,6 +222,13 @@
           "unknown": "Unknown"
         }
       },
+      "data_source": {
+        "name": "Data source",
+        "state": {
+          "local": "Local network",
+          "cloud": "StokerCloud"
+        }
+      },
       "substate_time": {
         "name": "Substate time left"
       },
@@ -207,6 +283,12 @@
       "consumption_total": {
         "name": "Total consumption"
       },
+      "hot_water_today": {
+        "name": "Hot water today"
+      },
+      "ignitions": {
+        "name": "Ignitions"
+      },
       "fuel_energy": {
         "name": "Fuel energy"
       },
@@ -244,13 +326,13 @@
         "name": "Silo empty"
       },
       "order_recommendation": {
-        "name": "Order to last the season"
+        "name": "Order to last until restock"
       },
       "need_until_season_end": {
-        "name": "Needed until season end"
+        "name": "Needed until restock"
       },
       "runout_risk": {
-        "name": "Risk of running out this season"
+        "name": "Risk of running out before restock"
       },
       "forecast_today": {
         "name": "Expected today"
@@ -272,6 +354,66 @@
       },
       "model_days": {
         "name": "Days learned"
+      },
+      "order_by": {
+        "name": "Order pellets by"
+      },
+      "restock_date": {
+        "name": "Next restock"
+      },
+      "ash_level": {
+        "name": "Ash drawer"
+      },
+      "clean_due": {
+        "name": "Clean heat exchanger by"
+      },
+      "sweep_due": {
+        "name": "Chimney sweep due"
+      },
+      "service_due": {
+        "name": "Burner service due"
+      },
+      "cost_today": {
+        "name": "Cost today"
+      },
+      "cost_month": {
+        "name": "Cost this month"
+      },
+      "cost_season": {
+        "name": "Cost this season"
+      },
+      "cost_next_30d": {
+        "name": "Expected cost next 30 days"
+      },
+      "fuel_price_kwh": {
+        "name": "Pellet price per kWh"
+      },
+      "heat_price_pellets": {
+        "name": "Heat price, pellets"
+      },
+      "heat_price_heat_pump": {
+        "name": "Heat price, heat pump"
+      },
+      "burning_lot": {
+        "name": "Burning lot"
+      },
+      "normalized_yearly": {
+        "name": "Weather-normalized yearly use"
+      },
+      "hot_water_share": {
+        "name": "Hot water share"
+      },
+      "burned_total": {
+        "name": "Burned (Burnerific)"
+      },
+      "counter_calibration": {
+        "name": "Counter calibration"
+      },
+      "wind_effect": {
+        "name": "Wind effect per 5 m/s"
+      },
+      "sun_effect": {
+        "name": "Sun saving"
       }
     },
     "binary_sensor": {
@@ -298,6 +440,21 @@
       },
       "refill_silo": {
         "name": "Refill silo"
+      },
+      "ash_due_now": {
+        "name": "Empty ash drawer"
+      },
+      "clean_due_now": {
+        "name": "Clean heat exchanger"
+      },
+      "sweep_due_now": {
+        "name": "Chimney sweep"
+      },
+      "service_due_now": {
+        "name": "Burner service"
+      },
+      "lan_connection": {
+        "name": "LAN connection"
       }
     },
     "number": {
@@ -309,12 +466,6 @@
       },
       "silo_set": {
         "name": "Pellets in silo"
-      },
-      "boiler_setpoint": {
-        "name": "Boiler setpoint"
-      },
-      "dhw_setpoint": {
-        "name": "Hot water setpoint"
       }
     },
     "button": {
@@ -329,12 +480,64 @@
       },
       "reset_alarm": {
         "name": "Reset alarm"
+      },
+      "ash_done": {
+        "name": "Ash drawer emptied"
+      },
+      "clean_done": {
+        "name": "Heat exchanger cleaned"
+      },
+      "sweep_done": {
+        "name": "Chimney swept"
+      },
+      "service_done": {
+        "name": "Burner serviced"
       }
+    },
+    "climate": {
+      "boiler": {
+        "name": "Boiler"
+      }
+    },
+    "water_heater": {
+      "hot_water": {
+        "name": "Hot water"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Pellet calendar"
+      }
+    }
+  },
+  "issues": {
+    "alarm_out_of_pellets": {
+      "title": "{boiler}: probably out of pellets",
+      "description": "The boiler raised an ignition alarm (code {code}) and the silo holds about {silo} kg. Fill the silo, then reset the alarm on the boiler or with the Reset alarm button."
+    },
+    "alarm_ignition": {
+      "title": "{boiler}: ignition failed",
+      "description": "Alarm code {code}. There are still about {silo} kg in the silo, so check for ash or clinker in the burner and that the igniter works."
+    },
+    "alarm_burner_hot": {
+      "title": "{boiler}: burner too hot",
+      "description": "Alarm code {code}. Check the auger and the shaft sensor before restarting: a hot burner can mean burn-back risk."
+    },
+    "alarm_overheat": {
+      "title": "{boiler}: overheated",
+      "description": "Alarm code {code}. The overheat thermostat tripped. Let the boiler cool and check that the pumps circulate, then reset the thermostat."
+    },
+    "alarm_generic": {
+      "title": "{boiler}: alarm",
+      "description": "The boiler raised alarm code {code}. Check the boiler's display for details."
     }
   },
   "exceptions": {
     "pin_required": {
       "message": "Set the boiler's PIN in the integration to change settings."
+    },
+    "pin_wrong": {
+      "message": "The boiler refused the PIN. Home Assistant will ask for a new one."
     },
     "write_failed": {
       "message": "The boiler refused {setting}: {error}"
@@ -348,6 +551,12 @@
     "nothing_to_fill": {
       "message": "Nothing to fill: storage is empty or the silo is full."
     },
+    "bad_fill_log": {
+      "message": "Could not read the fill log: {error}"
+    },
+    "empty_fill_log": {
+      "message": "The fill log has no lines."
+    },
     "entry_not_found": {
       "message": "No loaded Burnerific boiler matches."
     },
@@ -358,7 +567,7 @@
   "services": {
     "add_delivery": {
       "name": "Add pellet delivery",
-      "description": "Pellets arrived. Adds them to storage and updates the average price.",
+      "description": "Pellets arrived. Adds them to storage as a lot and updates the average price.",
       "fields": {
         "config_entry_id": {
           "name": "Boiler",
@@ -379,6 +588,10 @@
         "total_price": {
           "name": "Total price",
           "description": "Optional, used when price per kg is not given."
+        },
+        "supplier": {
+          "name": "Supplier",
+          "description": "Optional. Used to compare how well suppliers' pellets burn."
         },
         "note": {
           "name": "Note",
@@ -472,11 +685,47 @@
     },
     "get_forecast": {
       "name": "Get pellet forecast",
-      "description": "Returns the full forecast: run-out quantiles, daily curve, model and climate.",
+      "description": "Returns everything: run-out quantiles, daily curve, model, maintenance, lots, seasons and costs.",
       "fields": {
         "config_entry_id": {
           "name": "Boiler",
           "description": "Which boiler. Only needed with more than one."
+        }
+      }
+    },
+    "import_fills": {
+      "name": "Import fill log",
+      "description": "Teach the model from your own notes: one line per silo fill with a date and an amount, e.g. '04-10-2025 6'.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Boiler",
+          "description": "Which boiler. Only needed with more than one."
+        },
+        "log": {
+          "name": "Fill log",
+          "description": "Date (day-month-year or year-month-day) and amount per line."
+        },
+        "unit": {
+          "name": "Amounts are in",
+          "description": "Bags (bag size from the options) or kilograms."
+        }
+      }
+    },
+    "maintenance_done": {
+      "name": "Maintenance done",
+      "description": "Mark a maintenance task as done, optionally on an earlier date.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Boiler",
+          "description": "Which boiler. Only needed with more than one."
+        },
+        "task": {
+          "name": "Task",
+          "description": "Which task."
+        },
+        "date": {
+          "name": "Date",
+          "description": "When it was done. Default today."
         }
       }
     }

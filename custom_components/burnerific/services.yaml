@@ -29,6 +29,10 @@ add_delivery:
           max: 1000
           step: 0.01
           mode: box
+    supplier:
+      example: Pillefabrikken
+      selector:
+        text:
     total_price:
       example: 2780
       selector:
@@ -91,3 +95,40 @@ set_setting:
 get_forecast:
   fields:
     config_entry_id: *entry
+
+import_fills:
+  fields:
+    config_entry_id: *entry
+    log:
+      required: true
+      example: |
+        04-10-2025  6
+        15-10-2025  6
+      selector:
+        text:
+          multiline: true
+    unit:
+      default: bags
+      selector:
+        select:
+          translation_key: fill_unit
+          options:
+            - bags
+            - kg
+
+maintenance_done:
+  fields:
+    config_entry_id: *entry
+    task:
+      required: true
+      selector:
+        select:
+          translation_key: task
+          options:
+            - ash
+            - clean
+            - sweep
+            - service
+    date:
+      selector:
+        date:

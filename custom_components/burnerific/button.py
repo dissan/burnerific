@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, TASKS
 from .coordinator import BoilerCoordinator
 from .entity import BurnerificEntity
 from .pellet_coordinator import PelletCoordinator
@@ -31,6 +31,7 @@ async def async_setup_entry(
 ) -> None:
     rt = entry.runtime_data
     entities: list[ButtonEntity] = [FillSiloButton(rt.pellets, rt.boiler)]
+    entities += [MaintenanceDoneButton(rt.pellets, rt.boiler, task) for task in TASKS]
     if rt.boiler.can_write:
         entities += [CommandButton(rt.boiler, key, group, setting) for key, group, setting in COMMANDS]
     async_add_entities(entities)
@@ -56,3 +57,14 @@ class CommandButton(BurnerificEntity[BoilerCoordinator], ButtonEntity):
 
     async def async_press(self) -> None:
         await self.coordinator.async_write(self._group, self._setting, 1)
+
+
+class MaintenanceDoneButton(BurnerificEntity[PelletCoordinator], ButtonEntity):
+    """Press after emptying the ash drawer, cleaning, the sweep's visit or a service."""
+
+    def __init__(self, pellets: PelletCoordinator, boiler: BoilerCoordinator, task: str) -> None:
+        super().__init__(pellets, boiler, ButtonEntityDescription(key=f"{task}_done", translation_key=f"{task}_done"))
+        self._task = task
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_maintenance_done(self._task)

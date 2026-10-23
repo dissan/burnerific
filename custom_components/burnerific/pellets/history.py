@@ -19,6 +19,8 @@ class DayRecord:
     temp_hours: float = 0.0
     temp_override: float | None = None  # e.g. backfilled from the weather archive
     source: str = "live"
+    dhw_kg: float | None = None  # part of kg that went to hot water, when the controller tells
+    lot: int | None = None  # delivery lot burning that day
 
     @property
     def temp(self) -> float | None:
@@ -109,13 +111,29 @@ class History:
         if temp is not None and rec.temp_hours < MIN_TEMP_HOURS:
             rec.temp_override = temp
 
-    def observations(self) -> list[DayObs]:
+    def observations(self, weather=None, *, heating_only: bool = False) -> list[DayObs]:
+        """Closed days with a burn figure. ``weather(day)`` may supply ``(wind, sun)``.
+
+        With ``heating_only`` the hot water share is taken out, for models that
+        handle hot water separately.
+        """
         out = []
         for key, rec in sorted(self.days.items()):
             if key == self.current or rec.kg is None:
                 continue
-            out.append(DayObs(date.fromisoformat(key), rec.kg, rec.temp))
+            day = date.fromisoformat(key)
+            wind = sun = None
+            if weather is not None and (w := weather(day)) is not None:
+                wind, sun = w
+            kg = rec.kg - (rec.dhw_kg or 0.0) if heating_only else rec.kg
+            out.append(DayObs(day, max(0.0, kg), rec.temp, wind, sun))
         return out
+
+    def dhw_mean(self, today: date, days: int = 30) -> float | None:
+        """Average hot water kg/day over recent days the controller reported it for."""
+        cutoff = (today - timedelta(days=days)).isoformat()
+        vals = [r.dhw_kg for k, r in self.days.items() if k >= cutoff and k != self.current and r.dhw_kg is not None]
+        return sum(vals) / len(vals) if vals else None
 
     def temps(self) -> list[tuple[date, float]]:
         return [(date.fromisoformat(k), t) for k, r in sorted(self.days.items()) if (t := r.temp) is not None]
@@ -139,7 +157,8 @@ class History:
     def from_dict(cls, data: dict | None) -> History:
         if not data:
             return cls.empty()
-        days = {k: DayRecord(**v) for k, v in data.get("days", {}).items()}
+        fields = DayRecord.__dataclass_fields__
+        days = {k: DayRecord(**{f: x for f, x in v.items() if f in fields}) for k, v in data.get("days", {}).items()}
         return cls(
             days=days,
             current=data.get("current"),

@@ -4,37 +4,66 @@
 
 A, nah, **THE** Home Assistant integration for NBE pellet boilers.
 
-It talks to the controller directly over the local NBE UDP protocol: no cloud, no StokerCloud, no extra Python packages. Then it does what no other NBE integration does. It tracks your pellets and works out when you will run out, with a forecast that knows about the weather.
+It talks to the controller directly over the local NBE UDP protocol: no extra Python packages, and StokerCloud only as a fallback if you want it. Then it does what no other NBE integration does. It tracks your pellets, learns your house, and tells you when to fill the silo, when to order, when to clean, and what your heat costs.
 
 ## What you get
 
 **The boiler**
-- State and substate in your language (English and Danish), alarm, flame, ignition, pumps
-- Temperatures (boiler, return, flue gas, shaft, hot water, outdoor), power in % and kW, oxygen, fan speeds
-- Consumption today and total, plus a fuel energy sensor (kWh) for the Energy dashboard
-- With the PIN: boiler and hot water setpoints, start, stop, reset alarm, and a `set_setting` service for anything else. Writes use the controller's own RSA scheme, implemented in plain Python.
+- A **thermostat** (`climate`) for the boiler: setpoint, on/off, and whether it is heating or idle. With a hot water tank, a **water heater** too.
+- State and substate in your language, alarm, flame, ignition, pumps, ignition counter
+- Temperatures (boiler, return, flue gas, shaft, hot water, outdoor), power in % and kW, fan speeds. Oxygen sensors are only enabled on boilers with a lambda sensor.
+- **Alarms become Repairs issues with a hint.** An ignition alarm with an empty silo says "probably out of pellets", not just "alarm 13".
+- The controller's **event log** in Home Assistant's logbook ("changed from burning to stopped by timer")
+- Consumption today and total, hot water today, and a fuel energy sensor (kWh) for the Energy dashboard
+- With the PIN: start, stop, reset alarm, and `set_setting` for anything else. Writes use the controller's own RSA scheme, implemented in plain Python. A changed PIN triggers re-authentication.
+- **StokerCloud fallback**: read the boiler through the cloud while the LAN is down (optional)
 
 **The pellets**
-- **Storage** (bags, pallets, the shed) and **silo** (the hopper by the boiler), each in kg, plus bags and total stock
-- **Deliveries** go into storage, with a weighted average price and the value of your stock
-- **Fill silo** takes pellets out of storage and, with a PIN, updates the controller's own silo count
-- The silo follows the controller's count when it has one. Otherwise Burnerific tracks it from the burn counter.
+- **Storage** (bags, pallets, the shed) and **silo** (the hopper by the boiler) in kg and bags
+- **Deliveries** become lots with supplier and price. Pellets move first-in first-out, so Burnerific knows which lot is burning.
+- **Fill silo** takes pellets out of storage and, with a PIN, updates the controller's silo count
+- The silo follows the controller's count, Burnerific's own count, or **a level sensor** (percent, or a distance sensor above the pellets)
+- **Import your fill log**: paste lines like `04-10-2025 6` (date, sacks) and the model learns from your past winters right away
+- **Counter calibration**: compares what you filled with what the controller counted, and can correct its counter
 
 **The forecast**
-- **Pellets run out** and **Silo empty** dates, as P10 / P50 / P90
-- **Order to last the season**: how much to order so that you reach the end of the heating season with 90 % confidence
-- **Risk of running out this season**, expected burn today, next 7 and next 30 days (daily curve in the attributes)
-- `Order pellets` and `Refill silo` binary sensors to hang automations on
+- **Pellets run out** and **Silo empty** dates, as P10 / P50 / P90, plus a fan chart of the remaining stock
+- **Order by**: the last day to order given your delivery time. **Order to last until restock**: how much, with 90 % confidence.
+- **Next restock date**: when you plan to buy again (for example when new-season prices start)
+- Expected burn today, next 7 and next 30 days
+- A **calendar** with all of it: silo empty, order by, run-out, restock and maintenance
+
+**Maintenance**
+- **Ash drawer** fill level, predicted from kg burned and the pellets' ash content
+- **Heat exchanger cleaning** and **burner service** by kg burned, **chimney sweep** by date, each with a due date from the burn forecast
+- Buttons to mark each one done
+
+**Money and efficiency**
+- **Cost** today, this month, this season, and expected for the next 30 days
+- **Pellet price per kWh** (for the Energy dashboard), and heat price compared with a **heat pump**
+- **Supplier quality**: does lot A burn more pellets per degree-day than lot B?
+- **Weather-normalised yearly consumption** per season, so you can see whether new insulation paid off
+
+**In your dashboard**
+- A **Lovelace card** (`custom:burnerific-card`): silo gauge, stock, run-out date and range, order-by, fan chart and maintenance chips
+- **Blueprints**, installed to `blueprints/automation/burnerific/`: fill-silo reminder, order pellets, and boiler alarm with hint
+- English, Danish, Swedish, Norwegian, German and Polish. Swedish, Norwegian, German and Polish are first drafts; corrections welcome.
 
 ## The math
 
-**1. A model of your house.** Daily pellet use is modelled with degree-days:
+**1. A model of your house.** Daily pellet use is modelled with degree-days, wind and sun:
 
 ```
-kg/day = base_load + k · max(0, T_limit − T_eff)
+kg/day = base_load
+       + k   · HDD
+       + k_w · HDD · (wind − normal wind) / 5 m/s
+       − k_s · sunshine · (fades in over the first 3 degree-days)
+HDD    = max(0, T_limit − T_eff)
 ```
 
-`base_load` is hot water and standby losses. `k` is kg per degree-day: how big and leaky the house is. `T_limit` is the heating limit, the outdoor temperature above which the house needs no heat. `T_eff` is the outdoor temperature smoothed over about a day, because the house has thermal mass.
+`base_load` is hot water and standby losses. `k` is kg per degree-day: how big and leaky the house is. `k_w` is how much more a cold windy day costs than a cold calm one, and `k_s` is what sunshine through the windows saves. `T_limit` is the heating limit, the outdoor temperature above which the house needs no heat. `T_eff` is the outdoor temperature smoothed over about a day, because the house has thermal mass. If the controller reports hot water separately, that part is modelled on its own.
+
+The model learns from days (the controller's daily figures and Burnerific's own counting) and from periods: the controller's monthly totals and the gaps between logged silo fills, each paired with the measured weather of every day in it.
 
 The fit is Bayesian (Normal-Inverse-Gamma conjugate), so:
 - On day one it works from your rough yearly consumption.
@@ -74,12 +103,14 @@ The options let you choose an outdoor temperature sensor, who counts the silo, d
 
 | Service | What it does |
 |---|---|
-| `burnerific.add_delivery` | `kg` and/or `bags`, optional `price_per_kg` or `total_price`, `note` |
+| `burnerific.add_delivery` | `kg` and/or `bags`, optional `price_per_kg` or `total_price`, `supplier`, `note` |
 | `burnerific.fill_silo` | `kg` and/or `bags` (empty = whole bags up to silo capacity), `from_storage` |
 | `burnerific.set_storage` | Correct storage after counting |
 | `burnerific.set_silo` | Correct the silo content (written to the controller when it counts the silo) |
 | `burnerific.set_setting` | `key` like `boiler.temp`, `value`. Needs the PIN |
-| `burnerific.get_forecast` | Returns everything: quantiles, daily curve, model parameters, climate |
+| `burnerific.import_fills` | `log`: one fill per line (`04-10-2025 6`), `unit`: `bags` or `kg`. Returns what it learned |
+| `burnerific.maintenance_done` | `task`: `ash`, `clean`, `sweep` or `service`, optional `date` |
+| `burnerific.get_forecast` | Returns everything: quantiles, curve, model, maintenance, lots, seasons, costs, calibration |
 
 ```yaml
 # The pallet arrived

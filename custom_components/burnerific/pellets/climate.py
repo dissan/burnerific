@@ -18,9 +18,9 @@ the hemisphere when that is not available.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import date
 import math
+from dataclasses import asdict, dataclass, field
+from datetime import date
 
 from .linalg import cholesky, solve_cholesky, weighted_normal_equations
 
@@ -56,6 +56,12 @@ class ClimateModel:
     phi: float  # day to day persistence of anomalies
     source: str = "default"
     years: float = 0.0
+    sun_coef: list[float] = field(default_factory=lambda: [10.0, -8.5, -2.8])  # MJ/m² ≈ s0 + s1 cos + s2 sin
+    wind_mean: float = 7.0  # typical daily max wind at 10 m, m/s
+
+    def sun(self, d: date) -> float:
+        f = _features(d)
+        return max(0.0, sum(c * v for c, v in zip(self.sun_coef, f[:3], strict=True)))
 
     def mean(self, d: date) -> float:
         return sum(c * f for c, f in zip(self.mean_coef, _features(d), strict=True))
@@ -76,7 +82,7 @@ class ClimateModel:
         if not data:
             return None
         try:
-            return cls(**data)
+            return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
         except TypeError:
             return None
 
@@ -99,14 +105,18 @@ class ClimateModel:
         half = 0.5 * (math.log(3.4**2) - math.log(2.4**2))
         v1 = -half * math.cos(OMEGA * peak)
         v2 = -half * math.sin(OMEGA * peak)
-        return cls([8.5, c1, s1, 0.0, 0.0], [mid, v1, v2], 0.78, "default", 0.0)
+        # Sunshine peaks at the solstice, a month before the warmth: ~1-2 MJ/m² in December, ~19 in June.
+        sun_peak = 172 if not south else 355
+        sun = [10.0, 9.0 * math.cos(OMEGA * sun_peak), 9.0 * math.sin(OMEGA * sun_peak)]
+        return cls([8.5, c1, s1, 0.0, 0.0], [mid, v1, v2], 0.78, "default", 0.0, sun, 7.0)
 
     @classmethod
-    def fit(cls, days: list[tuple[date, float]]) -> ClimateModel:
-        """Fit from daily mean temperatures. Needs at least a year to mean much."""
+    def fit(cls, days: list[tuple]) -> ClimateModel:
+        """Fit from ``(date, mean °C)`` or ``(date, mean °C, max wind m/s, sun MJ/m²)`` rows."""
         if len(days) < 120:
             raise ValueError("need at least 120 days of temperatures")
-        days = sorted(days)
+        extra = sorted(days)
+        days = [(r[0], r[1]) for r in extra]
         rows = [_features(d) for d, _ in days]
         ys = [t for _, t in days]
         xtx, xty, _ = weighted_normal_equations(rows, ys, [1.0] * len(ys))
@@ -134,4 +144,15 @@ class ClimateModel:
         vcoef = solve_cholesky(cholesky(vxtx), vxty)
 
         span = (days[-1][0] - days[0][0]).days / 365.2425
-        return cls(coef, vcoef, phi, "history", round(span, 2))
+        model = cls(coef, vcoef, phi, "history", round(span, 2))
+        winds = [r[2] for r in extra if len(r) > 2 and r[2] is not None]
+        if winds:
+            model.wind_mean = round(sum(winds) / len(winds), 2)
+        suns = [(r[0], r[3]) for r in extra if len(r) > 3 and r[3] is not None]
+        if len(suns) >= 120:
+            srows = [_features(d)[:3] for d, _ in suns]
+            sxtx, sxty, _ = weighted_normal_equations(srows, [v for _, v in suns], [1.0] * len(suns))
+            for i in range(3):
+                sxtx[i][i] += 1e-6
+            model.sun_coef = solve_cholesky(cholesky(sxtx), sxty)
+        return model

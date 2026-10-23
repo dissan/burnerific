@@ -74,19 +74,33 @@ async def test_options_flow(hass: HomeAssistant, entry, open_meteo) -> None:
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            "scan_interval": 60,
-            "use_open_meteo": False,
-            "bag_kg": 15,
-            "silo_tracking": "integration",
-            "annual_kg": 3000,
-            "order_lead_days": 14,
-            "season_end": "05-15",
-            "kwh_per_kg": 4.9,
+            "boiler": {"scan_interval": 60, "stokercloud_user": ""},
+            "weather": {"use_open_meteo": False},
+            "stock": {
+                "bag_kg": 15,
+                "silo_tracking": "integration",
+                "annual_kg": 3000,
+                "order_lead_days": 14,
+                "restock_date": "04-01",
+                "apply_calibration": False,
+                "split_hot_water": True,
+            },
+            "maintenance": {
+                "ash_capacity_kg": 4,
+                "ash_pct": 0.7,
+                "clean_interval_kg": 1000,
+                "sweep_interval_days": 365,
+                "service_interval_kg": 8000,
+                "service_interval_days": 365,
+            },
+            "money": {"kwh_per_kg": 4.9, "boiler_efficiency": 0.9, "heat_pump_cop": 3.5},
         },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert entry.options["silo_tracking"] == "integration"
+    assert entry.options["restock_date"] == "04-01"
+    assert "stokercloud_user" not in entry.options  # blank values are dropped
     assert entry.runtime_data.pellets.inventory.bag_kg == 15  # reloaded with the new options
 
 
@@ -100,3 +114,25 @@ async def test_reconfigure_keeps_pin(hass: HomeAssistant, entry, fake_boiler, op
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data["pin"] == PIN
+
+
+async def test_wrong_pin_is_caught(hass: HomeAssistant, fake_boiler) -> None:
+    _, host = fake_boiler
+    with patch(SCAN, return_value=[]):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"host": host, "pin": "4242"})
+    assert result["errors"] == {"pin": "invalid_pin"}
+
+
+async def test_subnet_sweep_when_broadcast_finds_nothing(hass: HomeAssistant, fake_boiler) -> None:
+    _, host = fake_boiler
+    found = [DiscoveryInfo("12345678", "127.0.0.1", "v7std", "680", host)]
+    adapters = [{"enabled": True, "ipv4": [{"address": "192.168.1.109", "network_prefix": 24}]}]
+    with (
+        patch(SCAN, side_effect=[[], found]) as scan,
+        patch("custom_components.burnerific.config_flow.network.async_get_adapters", return_value=adapters),
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    assert result["step_id"] == "pick"
+    swept = scan.call_args_list[1].args[0]
+    assert len(swept) == 253 and "192.168.1.87" in swept

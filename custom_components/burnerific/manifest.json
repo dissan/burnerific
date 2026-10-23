@@ -1,15 +1,25 @@
 {
   "domain": "burnerific",
   "name": "Burnerific (NBE pellet boilers)",
-  "codeowners": ["@dissan"],
+  "codeowners": [
+    "@dissan"
+  ],
   "config_flow": true,
-  "dependencies": [],
-  "after_dependencies": ["weather"],
+  "dependencies": [
+    "http"
+  ],
+  "after_dependencies": [
+    "frontend",
+    "network",
+    "weather"
+  ],
   "documentation": "https://github.com/dissan/burnerific",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/dissan/burnerific/issues",
-  "loggers": ["custom_components.burnerific"],
+  "loggers": [
+    "custom_components.burnerific"
+  ],
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

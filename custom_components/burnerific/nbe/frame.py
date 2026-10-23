@@ -11,9 +11,9 @@ All numeric fields are ASCII decimal. Responses are never encrypted.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import secrets
 import time
+from dataclasses import dataclass
 
 from .crypto import LeadingZero, RsaKey
 
