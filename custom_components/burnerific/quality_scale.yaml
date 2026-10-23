@@ -1,0 +1,72 @@
+# Home Assistant integration quality scale, self-assessed.
+# https://developers.home-assistant.io/docs/core/integration-quality-scale/
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling: done
+  brands: done  # shipped in brand/, served by HA 2026.x
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency: done  # no third-party requirements
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: todo
+  entity-event-setup:
+    status: exempt
+    comment: Entities only listen to their coordinator.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done  # the coordinator logs once; StokerCloud fallback logs its switch
+  parallel-updates: done
+  reauthentication-flow: done  # a refused PIN starts reauth
+  test-coverage:
+    status: todo
+    comment: HA tests cover setup, flows, services and all platforms; no coverage percentage measured yet.
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: done
+    comment: UDP broadcast, then a unicast sweep of the local subnets, in the config flow.
+  discovery-update-info: done  # a rediscovered boiler updates its host
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: todo
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: One config entry is one boiler.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done  # oxygen sensors without a lambda sensor
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues: done  # controller alarms
+  stale-devices:
+    status: exempt
+    comment: One config entry is one boiler.
+
+  # Platinum
+  async-dependency: done
+  inject-websession: done
+  strict-typing: todo

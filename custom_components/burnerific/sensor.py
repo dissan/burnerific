@@ -23,9 +23,10 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_KWH_PER_KG, DEFAULT_KWH_PER_KG
+from .const import CONF_KWH_PER_KG, DEFAULT_KWH_PER_KG, DOMAIN
 from .coordinator import BoilerCoordinator
 from .entity import BurnerificEntity
 from .nbe import BoilerData
@@ -42,13 +43,14 @@ PARALLEL_UPDATES = 0
 class BoilerSensorDescription(SensorEntityDescription):
     value_fn: Callable[[BoilerData], Any]
     always: bool = False  # create even when the boiler does not report it right now
+    needs_lambda: bool = False  # junk without a lambda sensor: created disabled then
 
 
 @dataclass(frozen=True, kw_only=True)
 class PelletSensorDescription(SensorEntityDescription):
     value_fn: Callable[[PelletState], Any]
     attrs_fn: Callable[[PelletState], dict[str, Any]] | None = None
-    currency: bool = False
+    currency: str | None = None  # unit is the HA currency plus this suffix ("", "/kg", "/kWh")
 
 
 def _temp(key: str, fn: Callable[[BoilerData], float | None], **kw: Any) -> BoilerSensorDescription:
@@ -118,8 +120,8 @@ BOILER_SENSORS: tuple[BoilerSensorDescription, ...] = (
     _temp("dhw_temp", lambda d: d.dhw_temp),
     _temp("dhw_ref", lambda d: d.dhw_ref),
     _temp("outdoor_temp", lambda d: d.outdoor_temp),
-    _pct("oxygen", lambda d: d.oxygen),
-    _pct("oxygen_ref", lambda d: d.oxygen_ref, entity_category=EntityCategory.DIAGNOSTIC),
+    _pct("oxygen", lambda d: d.oxygen, needs_lambda=True),
+    _pct("oxygen_ref", lambda d: d.oxygen_ref, entity_category=EntityCategory.DIAGNOSTIC, needs_lambda=True),
     _pct("photo_level", lambda d: d.photo_level, entity_category=EntityCategory.DIAGNOSTIC),
     _pct("fan_speed", lambda d: d.fan_speed, entity_category=EntityCategory.DIAGNOSTIC),
     _pct("exhaust_speed", lambda d: d.exhaust_speed, entity_category=EntityCategory.DIAGNOSTIC),
@@ -141,6 +143,31 @@ BOILER_SENSORS: tuple[BoilerSensorDescription, ...] = (
         suggested_display_precision=0,
         value_fn=lambda d: d.total_kg,
     ),
+    BoilerSensorDescription(
+        key="hot_water_today",
+        translation_key="hot_water_today",
+        device_class=SensorDeviceClass.WEIGHT,
+        native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=1,
+        value_fn=lambda d: d.dhw_kg_today if any(d.dhw_days_kg) else None,
+    ),
+    BoilerSensorDescription(
+        key="ignitions",
+        translation_key="ignitions",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.ignitions,
+    ),
+    BoilerSensorDescription(
+        key="data_source",
+        translation_key="data_source",
+        device_class=SensorDeviceClass.ENUM,
+        options=["local", "cloud"],
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.source,
+        always=True,
+    ),
 )
 
 
@@ -150,6 +177,40 @@ def _q(state: PelletState, field: str) -> dict[str, Any]:
         return {}
     values = getattr(f, field)
     return {f"{field}_{k}": (v.isoformat() if isinstance(v, date) else v) for k, v in values.items()}
+
+
+def _task_date(s: PelletState, key: str) -> date | None:
+    t = s.tasks.get(key)
+    return t.due_date if t else None
+
+
+def _task_pct(s: PelletState, key: str) -> float | None:
+    t = s.tasks.get(key)
+    return None if t is None or t.fraction is None else round(min(100.0, 100 * t.fraction), 1)
+
+
+def _task_attrs(s: PelletState, key: str) -> dict[str, Any]:
+    t = s.tasks.get(key)
+    return {} if t is None else {k: v for k, v in t.as_dict().items() if k != "key"}
+
+
+def _lot_name(s: PelletState) -> str | None:
+    lot = s.inventory.burning_lot
+    if lot is None:
+        return None
+    return lot.supplier or f"#{lot.id} {lot.delivered[:10]}"
+
+
+def _calibration_attrs(s: PelletState) -> dict[str, Any]:
+    cal = s.insights.calibration
+    if cal is None:
+        return {}
+    return {
+        "uncertainty": round(cal.uncertainty, 3),
+        "filled_kg": round(cal.filled_kg),
+        "counted_kg": round(cal.counted_kg),
+        "source": cal.source,
+    }
 
 
 def _rounded(v: float | None, nd: int = 1) -> float | None:
@@ -221,7 +282,7 @@ PELLET_SENSORS: tuple[PelletSensorDescription, ...] = (
         device_class=SensorDeviceClass.MONETARY,
         suggested_display_precision=0,
         value_fn=lambda s: _rounded(s.inventory.stock_value, 2),
-        currency=True,
+        currency="",
     ),
     PelletSensorDescription(
         key="price_per_kg",
@@ -232,7 +293,7 @@ PELLET_SENSORS: tuple[PelletSensorDescription, ...] = (
             "delivered_kg_total": round(s.inventory.delivered_kg_total, 1),
             "spent_total": round(s.inventory.spent_total, 2),
         },
-        currency=True,
+        currency="/kg",
     ),
     PelletSensorDescription(
         key="burned_today",
@@ -248,7 +309,7 @@ PELLET_SENSORS: tuple[PelletSensorDescription, ...] = (
         translation_key="runout_date",
         device_class=SensorDeviceClass.DATE,
         value_fn=lambda s: s.forecast.runout["p50"] if s.forecast else None,
-        attrs_fn=lambda s: _q(s, "runout") | _q(s, "days_left"),
+        attrs_fn=lambda s: _q(s, "runout") | _q(s, "days_left") | ({"bands": s.forecast.bands} if s.forecast else {}),
     ),
     PelletSensorDescription(
         key="days_left",
@@ -367,7 +428,161 @@ PELLET_SENSORS: tuple[PelletSensorDescription, ...] = (
             "climate_source": s.climate.source,
             "climate_years": s.climate.years,
             "computed_at": s.computed_at.isoformat() if s.computed_at else None,
+            "periods": s.model.n_periods if s.model else None,
         },
+    ),
+    PelletSensorDescription(
+        key="order_by",
+        translation_key="order_by",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda s: s.order_by,
+    ),
+    PelletSensorDescription(
+        key="restock_date",
+        translation_key="restock_date",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda s: s.restock,
+    ),
+    PelletSensorDescription(
+        key="ash_level",
+        translation_key="ash_level",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        value_fn=lambda s: _task_pct(s, "ash"),
+        attrs_fn=lambda s: _task_attrs(s, "ash"),
+    ),
+    PelletSensorDescription(
+        key="clean_due",
+        translation_key="clean_due",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda s: _task_date(s, "clean"),
+        attrs_fn=lambda s: _task_attrs(s, "clean"),
+    ),
+    PelletSensorDescription(
+        key="sweep_due",
+        translation_key="sweep_due",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda s: _task_date(s, "sweep"),
+        attrs_fn=lambda s: _task_attrs(s, "sweep"),
+    ),
+    PelletSensorDescription(
+        key="service_due",
+        translation_key="service_due",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda s: _task_date(s, "service"),
+        attrs_fn=lambda s: _task_attrs(s, "service"),
+    ),
+    PelletSensorDescription(
+        key="cost_today",
+        translation_key="cost_today",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=2,
+        value_fn=lambda s: s.cost_today,
+        currency="",
+    ),
+    PelletSensorDescription(
+        key="cost_month",
+        translation_key="cost_month",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.cost_month,
+        currency="",
+    ),
+    PelletSensorDescription(
+        key="cost_season",
+        translation_key="cost_season",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.cost_season,
+        currency="",
+    ),
+    PelletSensorDescription(
+        key="cost_next_30d",
+        translation_key="cost_next_30d",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.cost_next_30,
+        currency="",
+    ),
+    PelletSensorDescription(
+        key="fuel_price_kwh",
+        translation_key="fuel_price_kwh",
+        suggested_display_precision=3,
+        value_fn=lambda s: s.heat.pellet_per_kwh_fuel,
+        currency="/kWh",
+    ),
+    PelletSensorDescription(
+        key="heat_price_pellets",
+        translation_key="heat_price_pellets",
+        suggested_display_precision=3,
+        value_fn=lambda s: s.heat.pellet_per_kwh_heat,
+        attrs_fn=lambda s: {"pellets_cheaper_pct": s.heat.pellets_cheaper_pct},
+        currency="/kWh",
+    ),
+    PelletSensorDescription(
+        key="heat_price_heat_pump",
+        translation_key="heat_price_heat_pump",
+        suggested_display_precision=3,
+        value_fn=lambda s: s.heat.heat_pump_per_kwh_heat,
+        currency="/kWh",
+    ),
+    PelletSensorDescription(
+        key="burning_lot",
+        translation_key="burning_lot",
+        value_fn=lambda s: _lot_name(s),
+        attrs_fn=lambda s: {"lots": [lot.as_dict() for lot in s.insights.lots]},
+    ),
+    PelletSensorDescription(
+        key="normalized_yearly",
+        translation_key="normalized_yearly",
+        device_class=SensorDeviceClass.WEIGHT,
+        native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.insights.normal_year_kg,
+        attrs_fn=lambda s: {"seasons": [x.as_dict() for x in s.insights.seasons]},
+    ),
+    PelletSensorDescription(
+        key="hot_water_share",
+        translation_key="hot_water_share",
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        value_fn=lambda s: None if s.insights.dhw_share is None else round(100 * s.insights.dhw_share, 1),
+        attrs_fn=lambda s: {"daily_kg": s.insights.dhw_daily_kg},
+    ),
+    PelletSensorDescription(
+        key="burned_total",
+        translation_key="burned_total",
+        device_class=SensorDeviceClass.WEIGHT,
+        native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.burned_total,
+    ),
+    PelletSensorDescription(
+        key="counter_calibration",
+        translation_key="counter_calibration",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=3,
+        value_fn=lambda s: None if s.insights.calibration is None else round(s.insights.calibration.factor, 3),
+        attrs_fn=lambda s: _calibration_attrs(s),
+    ),
+    PelletSensorDescription(
+        key="wind_effect",
+        translation_key="wind_effect",
+        native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+        value_fn=lambda s: round(100 * s.model.wind_effect, 1) if s.model else None,
+    ),
+    PelletSensorDescription(
+        key="sun_effect",
+        translation_key="sun_effect",
+        native_unit_of_measurement="kg/(MJ/m²)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=2,
+        value_fn=lambda s: round(s.model.sun_kg_per_mj, 3) if s.model else None,
     ),
 )
 
@@ -378,19 +593,42 @@ async def async_setup_entry(
     rt = entry.runtime_data
     data = rt.boiler.data
     entities: list[SensorEntity] = [
-        BoilerSensor(rt.boiler, d) for d in BOILER_SENSORS if d.always or (data and d.value_fn(data) is not None)
+        BoilerSensor(rt.boiler, d, enabled=not (d.needs_lambda and data is not None and data.lambda_fitted is False))
+        for d in BOILER_SENSORS
+        if d.always or (data and d.value_fn(data) is not None)
     ]
     entities += [PelletSensor(rt.pellets, rt.boiler, d) for d in PELLET_SENSORS]
     if data is not None and data.total_kg is not None:
         entities.append(HeatSensor(rt.boiler, entry.options.get(CONF_KWH_PER_KG, DEFAULT_KWH_PER_KG)))
     async_add_entities(entities)
+    _hide_oxygen_once(hass, entry, data)
+
+
+def _hide_oxygen_once(hass: HomeAssistant, entry: BurnerificConfigEntry, data: BoilerData | None) -> None:
+    """Versions before 0.2 created the oxygen sensors enabled even without a lambda sensor.
+
+    Disable them once on such boilers; if the user turns them back on, that sticks.
+    """
+    pellets = entry.runtime_data.pellets
+    if data is None or data.lambda_fitted is not False or pellets.flags.get("oxygen_hidden"):
+        return
+    registry = er.async_get(hass)
+    for d in BOILER_SENSORS:
+        if not d.needs_lambda:
+            continue
+        entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.unique_id or entry.entry_id}_{d.key}")
+        entry_reg = registry.async_get(entity_id) if entity_id else None
+        if entry_reg is not None and entry_reg.disabled_by is None:
+            registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
+    pellets.flags["oxygen_hidden"] = True
 
 
 class BoilerSensor(BurnerificEntity[BoilerCoordinator], SensorEntity):
     entity_description: BoilerSensorDescription
 
-    def __init__(self, boiler: BoilerCoordinator, description: BoilerSensorDescription) -> None:
+    def __init__(self, boiler: BoilerCoordinator, description: BoilerSensorDescription, enabled: bool = True) -> None:
         super().__init__(boiler, boiler, description)
+        self._attr_entity_registry_enabled_default = enabled
 
     @property
     def native_value(self) -> Any:
@@ -424,13 +662,12 @@ class HeatSensor(BurnerificEntity[BoilerCoordinator], SensorEntity):
 class PelletSensor(BurnerificEntity[PelletCoordinator], SensorEntity):
     entity_description: PelletSensorDescription
     # Charts and logs are for cards, not for the database.
-    _unrecorded_attributes = frozenset({"daily", "last_events"})
+    _unrecorded_attributes = frozenset({"daily", "last_events", "bands", "lots", "seasons"})
 
     def __init__(self, pellets: PelletCoordinator, boiler: BoilerCoordinator, description: PelletSensorDescription) -> None:
         super().__init__(pellets, boiler, description)
-        if description.currency:
-            currency = pellets.hass.config.currency
-            self._attr_native_unit_of_measurement = currency if description.key == "stock_value" else f"{currency}/kg"
+        if description.currency is not None:
+            self._attr_native_unit_of_measurement = f"{pellets.hass.config.currency}{description.currency}"
 
     @property
     def native_value(self) -> Any:

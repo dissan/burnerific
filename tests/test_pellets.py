@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
 import math
 import random
+from datetime import date, datetime, timedelta
 
 import pytest
-
 from pellets import consumption
 from pellets.climate import ClimateModel, expected_degree_days
 from pellets.consumption import DayObs, MonthObs

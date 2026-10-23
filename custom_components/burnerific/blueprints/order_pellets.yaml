@@ -1,0 +1,57 @@
+blueprint:
+  name: Burnerific - time to order pellets
+  description: >
+    Sends a phone notification when there is a 10 % chance of running out of
+    pellets before a new delivery could arrive, with how much to order.
+  domain: automation
+  source_url: https://github.com/dissan/burnerific/blob/main/custom_components/burnerific/blueprints/order_pellets.yaml
+  input:
+    order_pellets:
+      name: Order pellets
+      description: The "Order pellets" binary sensor of your boiler.
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: binary_sensor
+    order_amount:
+      name: Order amount
+      description: The "Order to last until restock" sensor.
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: sensor
+    runout:
+      name: Run-out date
+      description: The "Pellets run out" sensor.
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: sensor
+    phone:
+      name: Phone
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+
+triggers:
+  - trigger: state
+    entity_id: !input order_pellets
+    to: "on"
+
+actions:
+  - variables:
+      amount_entity: !input order_amount
+      runout_entity: !input runout
+  - domain: mobile_app
+    type: notify
+    device_id: !input phone
+    title: Order pellets
+    message: >
+      Pellets likely run out {{ states(runout_entity) }}
+      (earliest {{ state_attr(runout_entity, 'runout_p10') }}).
+      To last until restock, order about {{ states(amount_entity) | float(0) | round(0) }} kg
+      ({{ state_attr(amount_entity, 'bags') | int(0) }} bags).

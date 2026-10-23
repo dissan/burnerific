@@ -1,0 +1,733 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Znalezione kotły",
+        "description": "Wybierz kocioł. PIN (na naklejce sterownika) jest potrzebny tylko do zmiany ustawień i aktualizacji zasobnika w sterowniku.",
+        "data": {
+          "host": "Kocioł",
+          "pin": "PIN"
+        }
+      },
+      "manual": {
+        "title": "Połącz z kotłem",
+        "description": "Żaden kocioł nie odpowiedział w sieci. Wpisz jego adres IP (ip:port też działa). Numer seryjny i PIN są opcjonalne.",
+        "data": {
+          "host": "Adres IP",
+          "serial": "Numer seryjny",
+          "pin": "PIN"
+        }
+      },
+      "pellets": {
+        "title": "Twój pellet",
+        "description": "Opowiedz Burnerific o swoim zapasie, aby przewidział, kiedy się skończy. Wszystko można zmienić później.",
+        "data": {
+          "initial_storage_kg": "Pellet w magazynie teraz (kg, bez zasobnika)",
+          "silo_capacity_kg": "Pojemność zasobnika (kg)",
+          "bag_kg": "Rozmiar worka (kg)",
+          "annual_kg": "Przybliżone roczne zużycie (kg)",
+          "weather_entity": "Prognoza pogody"
+        },
+        "data_description": {
+          "annual_kg": "Pierwsze przybliżenie dla modelu. W ciągu kilku tygodni nauczy się rzeczywistego zużycia."
+        }
+      },
+      "reconfigure": {
+        "title": "Zmień połączenie",
+        "data": {
+          "host": "Adres IP",
+          "pin": "PIN (puste zachowuje obecny)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Potrzebny nowy PIN",
+        "description": "{boiler} odrzucił PIN. Wpisz PIN z naklejki na sterowniku (lub ustawiony na panelu).",
+        "data": {
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kocioł nie odpowiedział. Sprawdź adres i czy Home Assistant jest w tej samej sieci.",
+      "invalid_host": "Nieprawidłowy adres.",
+      "invalid_pin": "Kocioł odrzucił ten PIN."
+    },
+    "abort": {
+      "already_configured": "Ten kocioł jest już skonfigurowany.",
+      "reconfigure_successful": "Połączenie zaktualizowane.",
+      "reauth_successful": "PIN zaktualizowany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Burnerific",
+        "sections": {
+          "boiler": {
+            "name": "Kocioł",
+            "data": {
+              "scan_interval": "Interwał odpytywania",
+              "stokercloud_user": "Nazwa użytkownika StokerCloud (zapas)"
+            },
+            "data_description": {
+              "stokercloud_user": "Odczytuj kocioł przez StokerCloud, gdy sieć lokalna go nie widzi. Znajdziesz w stokercloud.dk/v3/#/<użytkownik>/main-page."
+            }
+          },
+          "weather": {
+            "name": "Pogoda",
+            "data": {
+              "weather_entity": "Prognoza pogody",
+              "temperature_entity": "Czujnik temperatury zewnętrznej",
+              "use_open_meteo": "Używaj Open-Meteo dla klimatu, wiatru i słońca"
+            },
+            "data_description": {
+              "use_open_meteo": "Wysyła twoją lokalizację zaokrągloną do ~1 km do open-meteo.com."
+            }
+          },
+          "stock": {
+            "name": "Pellet i zasobnik",
+            "data": {
+              "bag_kg": "Rozmiar worka (kg)",
+              "silo_capacity_kg": "Pojemność zasobnika (kg)",
+              "silo_tracking": "Kto liczy zasobnik",
+              "silo_sensor": "Czujnik poziomu zasobnika",
+              "silo_sensor_empty": "Odczyt czujnika przy pustym",
+              "silo_sensor_full": "Odczyt czujnika przy pełnym",
+              "annual_kg": "Przybliżone roczne zużycie (kg)",
+              "order_lead_days": "Czas dostawy pelletu (dni)",
+              "restock_date": "Następne uzupełnienie (MM-DD)",
+              "apply_calibration": "Koryguj licznik sterownika wyuczoną kalibracją",
+              "split_hot_water": "Modeluj c.w.u. osobno"
+            },
+            "data_description": {
+              "restock_date": "Kiedy planujesz znowu kupić pellet, np. gdy zaczynają się ceny nowego sezonu. Domyślnie 06-01.",
+              "order_lead_days": "'Zamów pellet' włącza się, gdy jest 10% szans na brak w ciągu tylu dni.",
+              "silo_sensor": "Czujnik poziomu w procentach lub czujnik odległości nad pelletem (wtedy wypełnij dwie wartości poniżej)."
+            }
+          },
+          "maintenance": {
+            "name": "Konserwacja",
+            "data": {
+              "ash_capacity_kg": "Popielnik mieści (kg popiołu)",
+              "ash_pct": "Zawartość popiołu w pellecie",
+              "clean_interval_kg": "Czyść wymiennik co (kg spalone)",
+              "sweep_interval_days": "Kominiarz co (dni)",
+              "service_interval_kg": "Serwis palnika co (kg)",
+              "service_interval_days": "... lub co (dni)"
+            }
+          },
+          "money": {
+            "name": "Koszty",
+            "data": {
+              "kwh_per_kg": "Energia na kg pelletu",
+              "boiler_efficiency": "Sprawność kotła",
+              "electricity_price": "Cena prądu (do porównania)",
+              "heat_pump_cop": "COP pompy ciepła (do porównania)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "silo_tracking": {
+      "options": {
+        "boiler": "Sterownik (ustawienie zawartości zasobnika)",
+        "integration": "Burnerific, z licznika zużycia",
+        "sensor": "Czujnik poziomu zasobnika"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Wpisz adres ręcznie"
+      }
+    },
+    "fill_unit": {
+      "options": {
+        "bags": "Worki",
+        "kg": "kg"
+      }
+    },
+    "task": {
+      "options": {
+        "ash": "Opróżnij popielnik",
+        "clean": "Wyczyść wymiennik",
+        "sweep": "Kominiarz",
+        "service": "Serwis palnika"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Stan",
+        "state": {
+          "waiting": "Proszę czekać",
+          "ignition_1": "Rozpalanie 1",
+          "ignition_2": "Rozpalanie 2",
+          "power": "Praca",
+          "pause": "Pauza",
+          "hot_water": "Ciepła woda",
+          "alarm_low_boiler_temp": "Alarm: niska temperatura kotła",
+          "stopped_temp_reached": "Zatrzymany, temperatura osiągnięta",
+          "summer_stop": "Postój letni",
+          "alarm_hot_burner": "Alarm: gorący palnik",
+          "alarm_burner_plug": "Alarm: wtyczka palnika lub czujnik szybu",
+          "alarm_ignition": "Alarm: rozpalanie",
+          "off": "Wyłączony",
+          "alarm_boiler_sensor": "Alarm: błąd czujnika kotła",
+          "alarm_photo_sensor": "Alarm: błąd fotokomórki",
+          "alarm_shaft_sensor": "Alarm: błąd czujnika szybu",
+          "alarm_auger_output": "Alarm: wyjście ślimaka L1",
+          "alarm_no_flame_high": "Alarm: brak płomienia przy dużej mocy",
+          "stopped_external_temp": "Zatrzymany przez temperaturę zewnętrzną",
+          "stopped_timer": "Zatrzymany przez zegar",
+          "stopped_external_contact": "Zatrzymany przez styk zewnętrzny",
+          "stopped_weather": "Zatrzymany przez kompensację pogodową",
+          "alarm_fan_rpm": "Alarm: obroty wentylatora",
+          "alarm_no_flame_low": "Alarm: brak płomienia przy małej mocy",
+          "door_open": "Drzwi otwarte",
+          "alarm_overheat": "Alarm: termostat przegrzania",
+          "alarm_cascade": "Alarm: sterowanie kaskadowe",
+          "alarm_compressor": "Alarm: ciśnienie sprężarki",
+          "alarm_back_pressure": "Alarm: przeciwciśnienie",
+          "alarm_air_flow": "Alarm: nie osiągnięto przepływu powietrza",
+          "alarm_exhaust_temp": "Alarm: za wysoka temperatura spalin",
+          "alarm_ash_drawer": "Alarm: brak popielnika",
+          "air_flow_calibration": "Kalibracja przepływu powietrza",
+          "alarm_overpressure": "Alarm: nadciśnienie w komorze spalania",
+          "alarm_oxygen_sensor": "Alarm: błąd czujnika O₂",
+          "compressor_cleaning": "Czyszczenie sprężarką",
+          "alarm_ignition_failed": "Alarm: rozpalanie nieudane",
+          "alarm_condensate": "Alarm: pełny odstojnik kondensatu",
+          "unknown": "Nieznany"
+        }
+      },
+      "substate": {
+        "name": "Podstan",
+        "state": {
+          "none": "Brak",
+          "purging": "Przedmuch kotła przed rozpaleniem",
+          "ignition_fuel": "Paliwo do rozpalenia",
+          "igniter_pulse": "Impuls startowy zapalarki",
+          "electric_ignition": "Zapłon elektryczny",
+          "cooling_boiler": "Chłodzenie kotła",
+          "extinguishing": "Gaszenie i chłodzenie palnika",
+          "fan_cleaning": "Czyszczenie wentylatorem",
+          "ash_removal": "Usuwanie popiołu",
+          "external_contact": "Styk zewnętrzny",
+          "auger_after_run": "Wybieg ślimaka wewnętrznego",
+          "residual_heat_to_dhw": "Przekazywanie ciepła resztkowego do c.w.u.",
+          "external_filling": "Napełnianie zewnętrzne aktywne",
+          "unknown": "Nieznany"
+        }
+      },
+      "data_source": {
+        "name": "Źródło danych",
+        "state": {
+          "local": "Sieć lokalna",
+          "cloud": "StokerCloud"
+        }
+      },
+      "substate_time": {
+        "name": "Pozostały czas podstanu"
+      },
+      "power_pct": {
+        "name": "Moc"
+      },
+      "power_kw": {
+        "name": "Moc (kW)"
+      },
+      "boiler_temp": {
+        "name": "Temperatura kotła"
+      },
+      "boiler_ref": {
+        "name": "Temperatura zadana kotła"
+      },
+      "return_temp": {
+        "name": "Temperatura powrotu"
+      },
+      "smoke_temp": {
+        "name": "Temperatura spalin"
+      },
+      "shaft_temp": {
+        "name": "Temperatura szybu"
+      },
+      "dhw_temp": {
+        "name": "Temperatura c.w.u."
+      },
+      "dhw_ref": {
+        "name": "Temperatura zadana c.w.u."
+      },
+      "outdoor_temp": {
+        "name": "Temperatura zewnętrzna"
+      },
+      "oxygen": {
+        "name": "Tlen"
+      },
+      "oxygen_ref": {
+        "name": "Tlen zadany"
+      },
+      "photo_level": {
+        "name": "Poziom światła"
+      },
+      "fan_speed": {
+        "name": "Obroty wentylatora"
+      },
+      "exhaust_speed": {
+        "name": "Wentylator wyciągowy"
+      },
+      "consumption_today": {
+        "name": "Zużycie dziś"
+      },
+      "consumption_total": {
+        "name": "Zużycie całkowite"
+      },
+      "hot_water_today": {
+        "name": "C.w.u. dziś"
+      },
+      "ignitions": {
+        "name": "Rozpalenia"
+      },
+      "fuel_energy": {
+        "name": "Energia paliwa"
+      },
+      "silo": {
+        "name": "Zasobnik"
+      },
+      "silo_level": {
+        "name": "Poziom zasobnika"
+      },
+      "storage": {
+        "name": "Magazyn"
+      },
+      "storage_bags": {
+        "name": "Worki w magazynie"
+      },
+      "stock": {
+        "name": "Pellet łącznie"
+      },
+      "stock_value": {
+        "name": "Wartość pelletu"
+      },
+      "price_per_kg": {
+        "name": "Średnia cena pelletu"
+      },
+      "burned_today": {
+        "name": "Spalone dziś"
+      },
+      "runout_date": {
+        "name": "Pellet się skończy"
+      },
+      "days_left": {
+        "name": "Dni pelletu pozostało"
+      },
+      "silo_empty_date": {
+        "name": "Zasobnik pusty"
+      },
+      "order_recommendation": {
+        "name": "Zamów do uzupełnienia"
+      },
+      "need_until_season_end": {
+        "name": "Potrzeba do uzupełnienia"
+      },
+      "runout_risk": {
+        "name": "Ryzyko braku przed uzupełnieniem"
+      },
+      "forecast_today": {
+        "name": "Oczekiwane dziś"
+      },
+      "forecast_7d": {
+        "name": "Oczekiwane w ciągu 7 dni"
+      },
+      "forecast_30d": {
+        "name": "Oczekiwane w ciągu 30 dni"
+      },
+      "heating_limit": {
+        "name": "Granica grzania"
+      },
+      "kg_per_degree_day": {
+        "name": "Pellet na stopniodzień"
+      },
+      "base_load": {
+        "name": "Obciążenie podstawowe"
+      },
+      "model_days": {
+        "name": "Nauczone dni"
+      },
+      "order_by": {
+        "name": "Zamów pellet do"
+      },
+      "restock_date": {
+        "name": "Następne uzupełnienie"
+      },
+      "ash_level": {
+        "name": "Popielnik"
+      },
+      "clean_due": {
+        "name": "Wyczyść wymiennik do"
+      },
+      "sweep_due": {
+        "name": "Kominiarz do"
+      },
+      "service_due": {
+        "name": "Serwis palnika do"
+      },
+      "cost_today": {
+        "name": "Koszt dziś"
+      },
+      "cost_month": {
+        "name": "Koszt w tym miesiącu"
+      },
+      "cost_season": {
+        "name": "Koszt w tym sezonie"
+      },
+      "cost_next_30d": {
+        "name": "Oczekiwany koszt w ciągu 30 dni"
+      },
+      "fuel_price_kwh": {
+        "name": "Cena pelletu za kWh"
+      },
+      "heat_price_pellets": {
+        "name": "Cena ciepła, pellet"
+      },
+      "heat_price_heat_pump": {
+        "name": "Cena ciepła, pompa ciepła"
+      },
+      "burning_lot": {
+        "name": "Spalana partia"
+      },
+      "normalized_yearly": {
+        "name": "Roczne zużycie skorygowane pogodowo"
+      },
+      "hot_water_share": {
+        "name": "Udział c.w.u."
+      },
+      "burned_total": {
+        "name": "Spalone (Burnerific)"
+      },
+      "counter_calibration": {
+        "name": "Kalibracja licznika"
+      },
+      "wind_effect": {
+        "name": "Wpływ wiatru na 5 m/s"
+      },
+      "sun_effect": {
+        "name": "Oszczędność ze słońca"
+      }
+    },
+    "binary_sensor": {
+      "alarm": {
+        "name": "Alarm"
+      },
+      "burning": {
+        "name": "Płomień"
+      },
+      "igniting": {
+        "name": "Rozpala"
+      },
+      "boiler_pump": {
+        "name": "Pompa kotła"
+      },
+      "house_pump": {
+        "name": "Pompa domu"
+      },
+      "dhw_valve": {
+        "name": "Zawór c.w.u."
+      },
+      "order_pellets": {
+        "name": "Zamów pellet"
+      },
+      "refill_silo": {
+        "name": "Uzupełnij zasobnik"
+      },
+      "ash_due_now": {
+        "name": "Opróżnij popielnik"
+      },
+      "clean_due_now": {
+        "name": "Wyczyść wymiennik"
+      },
+      "sweep_due_now": {
+        "name": "Kominiarz"
+      },
+      "service_due_now": {
+        "name": "Serwis palnika"
+      },
+      "lan_connection": {
+        "name": "Połączenie LAN"
+      }
+    },
+    "number": {
+      "fill_amount": {
+        "name": "Ilość napełnienia"
+      },
+      "storage_set": {
+        "name": "Pellet w magazynie"
+      },
+      "silo_set": {
+        "name": "Pellet w zasobniku"
+      }
+    },
+    "button": {
+      "fill_silo": {
+        "name": "Napełnij zasobnik z magazynu"
+      },
+      "start": {
+        "name": "Uruchom kocioł"
+      },
+      "stop": {
+        "name": "Zatrzymaj kocioł"
+      },
+      "reset_alarm": {
+        "name": "Resetuj alarm"
+      },
+      "ash_done": {
+        "name": "Popielnik opróżniony"
+      },
+      "clean_done": {
+        "name": "Wymiennik wyczyszczony"
+      },
+      "sweep_done": {
+        "name": "Komin wyczyszczony"
+      },
+      "service_done": {
+        "name": "Palnik serwisowany"
+      }
+    },
+    "climate": {
+      "boiler": {
+        "name": "Kocioł"
+      }
+    },
+    "water_heater": {
+      "hot_water": {
+        "name": "Ciepła woda"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Kalendarz pelletu"
+      }
+    }
+  },
+  "issues": {
+    "alarm_out_of_pellets": {
+      "title": "{boiler}: prawdopodobnie brak pelletu",
+      "description": "Kocioł zgłosił alarm rozpalania (kod {code}), a w zasobniku jest ok. {silo} kg. Napełnij zasobnik i zresetuj alarm na kotle lub przyciskiem Resetuj alarm."
+    },
+    "alarm_ignition": {
+      "title": "{boiler}: rozpalanie nieudane",
+      "description": "Kod alarmu {code}. W zasobniku jest jeszcze ok. {silo} kg, sprawdź popiół lub żużel w palniku i działanie zapalarki."
+    },
+    "alarm_burner_hot": {
+      "title": "{boiler}: palnik za gorący",
+      "description": "Kod alarmu {code}. Przed ponownym uruchomieniem sprawdź ślimak i czujnik szybu: gorący palnik może oznaczać ryzyko cofnięcia płomienia."
+    },
+    "alarm_overheat": {
+      "title": "{boiler}: przegrzanie",
+      "description": "Kod alarmu {code}. Zadziałał termostat przegrzania. Ostudź kocioł, sprawdź cyrkulację pomp i zresetuj termostat."
+    },
+    "alarm_generic": {
+      "title": "{boiler}: alarm",
+      "description": "Kocioł zgłosił alarm o kodzie {code}. Szczegóły na wyświetlaczu kotła."
+    }
+  },
+  "exceptions": {
+    "pin_required": {
+      "message": "Ustaw PIN kotła w integracji, aby zmieniać ustawienia."
+    },
+    "pin_wrong": {
+      "message": "Kocioł odrzucił PIN. Home Assistant poprosi o nowy."
+    },
+    "write_failed": {
+      "message": "Kocioł odrzucił {setting}: {error}"
+    },
+    "amount_required": {
+      "message": "Podaj ilość w kg lub workach."
+    },
+    "not_enough_storage": {
+      "message": "Tylko {storage} kg w magazynie, nie można pobrać {kg} kg."
+    },
+    "nothing_to_fill": {
+      "message": "Nie ma czym napełnić: magazyn pusty lub zasobnik pełny."
+    },
+    "bad_fill_log": {
+      "message": "Nie udało się odczytać dziennika napełnień: {error}"
+    },
+    "empty_fill_log": {
+      "message": "Dziennik napełnień jest pusty."
+    },
+    "entry_not_found": {
+      "message": "Żaden załadowany kocioł Burnerific nie pasuje."
+    },
+    "entry_ambiguous": {
+      "message": "Więcej niż jeden kocioł: wskaż który przez config_entry_id."
+    }
+  },
+  "services": {
+    "add_delivery": {
+      "name": "Dodaj dostawę pelletu",
+      "description": "Pellet dotarł. Dodaje go do magazynu jako partię i aktualizuje średnią cenę.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Ilość w kilogramach."
+        },
+        "bags": {
+          "name": "Worki",
+          "description": "Ilość w workach (rozmiar worka z opcji). Dodawana do kg."
+        },
+        "price_per_kg": {
+          "name": "Cena za kg",
+          "description": "Opcjonalnie."
+        },
+        "total_price": {
+          "name": "Cena łączna",
+          "description": "Opcjonalnie, gdy brak ceny za kg."
+        },
+        "supplier": {
+          "name": "Dostawca",
+          "description": "Opcjonalnie. Do porównania, jak dobrze pali się pellet dostawców."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dowolny tekst zapisany w dzienniku zapasów."
+        }
+      }
+    },
+    "fill_silo": {
+      "name": "Napełnij zasobnik",
+      "description": "Pellet wsypany do zasobnika. Pobierany z magazynu i z PIN-em zapisywany w sterowniku.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Ilość w kg. Zostaw kg i worki puste, aby napełnić całymi workami do pojemności zasobnika."
+        },
+        "bags": {
+          "name": "Worki",
+          "description": "Ilość w workach (rozmiar worka z opcji). Dodawana do kg."
+        },
+        "from_storage": {
+          "name": "Pobierz z magazynu",
+          "description": "Wyłącz, jeśli pellet nie pochodził ze śledzonego magazynu."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dowolny tekst zapisany w dzienniku zapasów."
+        }
+      }
+    },
+    "set_storage": {
+      "name": "Ustaw magazyn",
+      "description": "Popraw ilość w magazynie po policzeniu.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Ilość w kilogramach."
+        },
+        "bags": {
+          "name": "Worki",
+          "description": "Ilość w workach (rozmiar worka z opcji). Dodawana do kg."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dowolny tekst zapisany w dzienniku zapasów."
+        }
+      }
+    },
+    "set_silo": {
+      "name": "Ustaw zawartość zasobnika",
+      "description": "Popraw ilość w zasobniku.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Ilość w kilogramach."
+        },
+        "note": {
+          "name": "Notatka",
+          "description": "Dowolny tekst zapisany w dzienniku zapasów."
+        }
+      }
+    },
+    "set_setting": {
+      "name": "Zmień ustawienie kotła",
+      "description": "Zapisz dowolne ustawienie sterownika, np. boiler.temp. Wymaga PIN-u.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "key": {
+          "name": "Ustawienie",
+          "description": "grupa.nazwa, np. boiler.temp lub hot_water.temp."
+        },
+        "value": {
+          "name": "Wartość",
+          "description": "Nowa wartość."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Pobierz prognozę pelletu",
+      "description": "Zwraca wszystko: datę wyczerpania, krzywą dzienną, model, konserwację, partie, sezony i koszty.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        }
+      }
+    },
+    "import_fills": {
+      "name": "Importuj dziennik napełnień",
+      "description": "Naucz model z własnych notatek: jedna linia na napełnienie zasobnika z datą i ilością, np. '04-10-2025 6'.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "log": {
+          "name": "Dziennik napełnień",
+          "description": "Data (dzień-miesiąc-rok lub rok-miesiąc-dzień) i ilość w każdej linii."
+        },
+        "unit": {
+          "name": "Ilości w",
+          "description": "Worki (rozmiar z opcji) lub kilogramy."
+        }
+      }
+    },
+    "maintenance_done": {
+      "name": "Konserwacja wykonana",
+      "description": "Oznacz zadanie konserwacyjne jako wykonane, opcjonalnie z wcześniejszą datą.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kocioł",
+          "description": "Który kocioł. Potrzebne tylko przy kilku."
+        },
+        "task": {
+          "name": "Zadanie",
+          "description": "Które zadanie."
+        },
+        "date": {
+          "name": "Data",
+          "description": "Kiedy wykonano. Domyślnie dziś."
+        }
+      }
+    }
+  }
+}

@@ -12,11 +12,12 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_ORDER_LEAD_DAYS, DEFAULT_ORDER_LEAD_DAYS
+from .const import CONF_ORDER_LEAD_DAYS, DEFAULT_ORDER_LEAD_DAYS, TASKS
 from .coordinator import BoilerCoordinator
 from .entity import BurnerificEntity
 from .nbe import BoilerData
@@ -82,6 +83,8 @@ async def async_setup_entry(
     ]
     lead = int(entry.options.get(CONF_ORDER_LEAD_DAYS, DEFAULT_ORDER_LEAD_DAYS))
     entities += [OrderPellets(rt.pellets, rt.boiler, lead), RefillSilo(rt.pellets, rt.boiler)]
+    entities += [MaintenanceDue(rt.pellets, rt.boiler, task) for task in TASKS]
+    entities.append(LanConnection(rt.boiler))
     async_add_entities(entities)
 
 
@@ -144,3 +147,46 @@ class RefillSilo(BurnerificEntity[PelletCoordinator], BinarySensorEntity):
         early = state.forecast.silo_empty["p10"]
         soon = early is not None and early <= dt_util.now().date() + timedelta(days=SILO_WARNING_DAYS)
         return soon and state.inventory.storage_kg > 0
+
+
+class MaintenanceDue(BurnerificEntity[PelletCoordinator], BinarySensorEntity):
+    """On when a maintenance task (ash, cleaning, sweep, service) is due."""
+
+    def __init__(self, pellets: PelletCoordinator, boiler: BoilerCoordinator, task: str) -> None:
+        super().__init__(
+            pellets,
+            boiler,
+            BinarySensorEntityDescription(
+                key=f"{task}_due_now", translation_key=f"{task}_due_now", device_class=BinarySensorDeviceClass.PROBLEM
+            ),
+        )
+        self._task = task
+
+    @property
+    def is_on(self) -> bool | None:
+        state: PelletState | None = self.coordinator.data
+        status = state.tasks.get(self._task) if state else None
+        return None if status is None or status.fraction is None else status.due
+
+
+class LanConnection(BurnerificEntity[BoilerCoordinator], BinarySensorEntity):
+    """Off while Burnerific falls back to StokerCloud (or the boiler is unreachable)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, boiler: BoilerCoordinator) -> None:
+        super().__init__(
+            boiler,
+            boiler,
+            BinarySensorEntityDescription(
+                key="lan_connection", translation_key="lan_connection", device_class=BinarySensorDeviceClass.CONNECTIVITY
+            ),
+        )
+
+    @property
+    def available(self) -> bool:
+        return True  # this one reports the outage itself
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.last_update_success and not self.coordinator.on_cloud

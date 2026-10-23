@@ -3,11 +3,11 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from nbe.client import DiscoveryInfo, NbeClient, NbeError, NbeRefused
 from nbe.crypto import RsaKey, RsaKeyError
-from nbe.frame import ETX, STX, FrameError, Fn, controller_id, decode_response, encode_request, parse_pairs
+from nbe.frame import ETX, STX, Fn, FrameError, controller_id, decode_response, encode_request, parse_pairs
 from nbe.model import BoilerData, BoilerReader, num, series
+
 from tests.rsa_util import b64, generate, pkcs1, spki
 
 
@@ -117,12 +117,25 @@ def test_encrypted_payload_too_long() -> None:
 class FakeBoiler(asyncio.DatagramProtocol):
     """Speaks just enough of the protocol: discovery, reads, key and encrypted writes."""
 
-    def __init__(self, pin: str = "0123456789", drop_first: int = 0) -> None:
+    def __init__(self, pin: str = "0123456789", drop_first: int = 0, profile: str = "basic") -> None:
+        """``profile``: "basic" (no lambda, no hot water tank) or "v13" (lambda regulation and a tank)."""
         self.n, self.e, self.d = generate()
         self.pin = pin
-        self.settings = {"boiler": {"temp": "65"}, "hopper": {"content": "104", "auger_capacity": "312"}}
+        self.profile = profile
+        self.settings = {
+            "boiler": {"temp": "65"},
+            "hopper": {"content": "104", "auger_capacity": "312"},
+            "misc": {"dummy": "0", "start": "0", "stop": "0", "reset_alarm": "0"},
+            "ignition": {"ignition_number": "2281"},
+            "oxygen": {"regulation": "1" if profile == "v13" else "0"},
+        }
+        if profile == "v13":
+            self.settings["hot_water"] = {"temp": "50"}
+        self.state = 5
         self.drop = drop_first
         self.writes: list[str] = []
+        # Event log, newest first: (yymmdd, hhmmss, kind, code, from, to)
+        self.events = [("261023", "160313", 1, 0, 2, 5), ("261023", "160007", 1, 0, 23, 2)]
         self.transport: asyncio.DatagramTransport | None = None
 
     def connection_made(self, transport) -> None:
@@ -145,11 +158,20 @@ class FakeBoiler(asyncio.DatagramProtocol):
         if fn == Fn.DISCOVERY:
             out = "Serial=12345678;IP=127.0.0.1;Type=v13;Ver=1105"
         elif fn == Fn.OPERATING_DATA:
-            out = "boiler_temp=61.5;boiler_ref=65;state=5;substate=0;power_pct=42;power_kw=6.8;dhw_temp=999.9;external_temp=4.5"
+            v13 = self.profile == "v13"
+            out = (
+                f"boiler_temp=61.5;boiler_ref=65;state={self.state};substate=0;power_pct=42;power_kw=6.8;"
+                f"dhw_temp={48.5 if v13 else 999.9};dhw_ref=50;external_temp=4.5;"
+                f"oxygen={8.4 if v13 else 17.6};oxygen_ref={8.0 if v13 else 20.9}"
+            )
         elif fn == Fn.ADVANCED_DATA:
             out = "program_version=1105"
         elif fn == Fn.CONSUMPTION:
-            out = {"counter": "counter=12345.6", "total_days": "total_days=" + ",".join(["10.0"] * 31)}.get(payload, "")
+            out = {
+                "counter": "counter=12345.6",
+                "total_days": "total_days=" + ",".join(["10.0"] * 31),
+                "dhw_days": "dhw_days=" + ",".join(["1.5" if self.profile == "v13" else "0"] * 31),
+            }.get(payload, "")
             status = 0 if out else 1
         elif fn == Fn.READ_SETTING and payload == "misc.rsa_key":
             out = "rsa_key=" + b64(spki(self.n, self.e))
@@ -159,6 +181,11 @@ class FakeBoiler(asyncio.DatagramProtocol):
                 out = ";".join(f"{k}={v}" for k, v in self.settings[group].items())
             else:
                 status = 1
+        elif fn == Fn.EVENT_LOG:
+            if len(payload) != 14 or payload[6] != ":":
+                status, out = 1, "Illegal date/time"
+            else:
+                out = ";".join(f"{d},{t},{k},{c},{a},{b}, " for d, t, k, c, a, b in self.events) + ";"
         elif fn == Fn.WRITE_SETTING:
             if data[18:19] != b"*" or pin != self.pin:
                 status, out = 1, "bad pin"
