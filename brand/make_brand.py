@@ -10,11 +10,11 @@ these straight from the integration folder (``/api/brands/integration/burnerific
 from __future__ import annotations
 
 import io
-from pathlib import Path
 import shutil
+from pathlib import Path
 
-from PIL import Image
 import resvg_py
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SHIPPED = ROOT / "custom_components" / "burnerific" / "brand"

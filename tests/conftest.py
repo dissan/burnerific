@@ -7,9 +7,10 @@ The Home Assistant tests in tests/ha need pytest-homeassistant-custom-component
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "custom_components" / "burnerific"))
+# Appended, not prepended: the integration has a calendar.py that must not shadow the stdlib module.
+sys.path.append(str(Path(__file__).resolve().parents[1] / "custom_components" / "burnerific"))
 
 collect_ignore = [] if importlib.util.find_spec("pytest_homeassistant_custom_component") else ["ha"]

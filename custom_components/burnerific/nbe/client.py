@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
-from dataclasses import dataclass
+import ipaddress
 import logging
 import random
 import socket
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import datetime
 
+from . import eventlog
 from .crypto import RsaKey, RsaKeyError
-from .frame import PORT, FrameError, Fn, Response, decode_response, encode_request, parse_pairs
+from .eventlog import LogEntry
+from .frame import PORT, Fn, FrameError, Response, decode_response, encode_request, parse_pairs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -152,6 +156,26 @@ def split_host(host: str, default_port: int = PORT) -> tuple[str, int]:
     return host.strip("[]"), default_port
 
 
+def subnet_hosts(networks: Iterable[str], own: Iterable[str] = (), limit: int = 1024) -> list[str]:
+    """Every host address of the given IPv4 networks (e.g. ``"192.168.1.0/24"``), skipping our own.
+
+    Used to find a boiler by asking each address directly when broadcasts don't
+    get through (Docker, VLANs, some firewalls). Networks larger than ``limit``
+    hosts are skipped rather than flooded.
+    """
+    skip = set(own)
+    out: list[str] = []
+    for text in networks:
+        try:
+            net = ipaddress.ip_network(text, strict=False)
+        except ValueError:
+            continue
+        if net.version != 4 or net.num_addresses - 2 > limit:
+            continue
+        out += [str(h) for h in net.hosts() if str(h) not in skip]
+    return out
+
+
 class NbeClient:
     """One controller. Requests are serialized; the controller only handles one at a time."""
 
@@ -268,6 +292,26 @@ class NbeClient:
 
     async def sw_versions(self) -> dict[str, str]:
         return await self.read_pairs(Fn.SW_VERSIONS, "")
+
+    async def event_log(self, before: datetime) -> list[LogEntry]:
+        """Event log entries before ``before`` (the controller sends a page, newest first)."""
+        response = await self.request(Fn.EVENT_LOG, eventlog.request_payload(before))
+        if not response.ok:
+            raise NbeRefused("event log", response)
+        return eventlog.parse(response.payload, before.tzinfo)
+
+    async def validate_pin(self) -> bool:
+        """Check the PIN with a harmless write (``misc.dummy``, a scratch setting every controller has).
+
+        Returns False when the controller refuses it, which on a reachable boiler means a wrong PIN.
+        """
+        if not self.pin:
+            return False
+        try:
+            await self.write_setting("misc", "dummy", 0)
+        except NbeRefused:
+            return False
+        return True
 
     # -- writes --------------------------------------------------------------
 

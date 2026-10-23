@@ -1,0 +1,733 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Funne kjeler",
+        "description": "Velg kjelen din. PIN-koden (på klistremerket på styringen) trengs bare for å endre innstillinger og oppdatere siloen i styringen.",
+        "data": {
+          "host": "Kjele",
+          "pin": "PIN"
+        }
+      },
+      "manual": {
+        "title": "Koble til kjelen",
+        "description": "Ingen kjele svarte på nettverket. Skriv inn IP-adressen (ip:port virker også). Serienummer og PIN er valgfrie.",
+        "data": {
+          "host": "IP-adresse",
+          "serial": "Serienummer",
+          "pin": "PIN"
+        }
+      },
+      "pellets": {
+        "title": "Dine pellets",
+        "description": "Fortell Burnerific om lageret ditt slik at den kan forutsi når det går tomt. Alt kan endres senere.",
+        "data": {
+          "initial_storage_kg": "Pellets på lager nå (kg, uten siloen)",
+          "silo_capacity_kg": "Silokapasitet (kg)",
+          "bag_kg": "Sekkestørrelse (kg)",
+          "annual_kg": "Omtrentlig årsforbruk (kg)",
+          "weather_entity": "Værvarsel"
+        },
+        "data_description": {
+          "annual_kg": "En første gjetning for modellen. Den lærer ditt faktiske forbruk i løpet av noen uker."
+        }
+      },
+      "reconfigure": {
+        "title": "Endre tilkobling",
+        "data": {
+          "host": "IP-adresse",
+          "pin": "PIN (tom beholder den nåværende)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ny PIN trengs",
+        "description": "{boiler} avviste PIN-koden. Skriv inn PIN-koden fra klistremerket på styringen (eller den du har satt på panelet).",
+        "data": {
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kjelen svarte ikke. Sjekk adressen og at Home Assistant er på samme nettverk.",
+      "invalid_host": "Ikke en gyldig adresse.",
+      "invalid_pin": "Kjelen avviste PIN-koden."
+    },
+    "abort": {
+      "already_configured": "Denne kjelen er allerede satt opp.",
+      "reconfigure_successful": "Tilkoblingen er oppdatert.",
+      "reauth_successful": "PIN-koden er oppdatert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Burnerific",
+        "sections": {
+          "boiler": {
+            "name": "Kjele",
+            "data": {
+              "scan_interval": "Oppdateringsintervall",
+              "stokercloud_user": "StokerCloud-brukernavn (reserve)"
+            },
+            "data_description": {
+              "stokercloud_user": "Les kjelen via StokerCloud når det lokale nettverket ikke når den. Står i stokercloud.dk/v3/#/<bruker>/main-page."
+            }
+          },
+          "weather": {
+            "name": "Vær",
+            "data": {
+              "weather_entity": "Værvarsel",
+              "temperature_entity": "Utetemperaturføler",
+              "use_open_meteo": "Bruk Open-Meteo for klima, vind og sol"
+            },
+            "data_description": {
+              "use_open_meteo": "Sender posisjonen din avrundet til ~1 km til open-meteo.com."
+            }
+          },
+          "stock": {
+            "name": "Pellets og silo",
+            "data": {
+              "bag_kg": "Sekkestørrelse (kg)",
+              "silo_capacity_kg": "Silokapasitet (kg)",
+              "silo_tracking": "Hvem teller siloen",
+              "silo_sensor": "Silonivåføler",
+              "silo_sensor_empty": "Følerverdi ved tom silo",
+              "silo_sensor_full": "Følerverdi ved full silo",
+              "annual_kg": "Omtrentlig årsforbruk (kg)",
+              "order_lead_days": "Leveringstid for pellets (dager)",
+              "restock_date": "Neste påfylling (MM-DD)",
+              "apply_calibration": "Korriger styringens teller med den lærte kalibreringen",
+              "split_hot_water": "Modeller varmtvann separat"
+            },
+            "data_description": {
+              "restock_date": "Når du planlegger å kjøpe pellets igjen, f.eks. når nye sesongpriser starter. Standard 06-01.",
+              "order_lead_days": "'Bestill pellets' slås på når det er 10 % risiko for å gå tom innen så mange dager.",
+              "silo_sensor": "En nivåføler i prosent, eller en avstandsføler over pelletsen (fyll da inn de to verdiene under)."
+            }
+          },
+          "maintenance": {
+            "name": "Vedlikehold",
+            "data": {
+              "ash_capacity_kg": "Askeskuffen rommer (kg aske)",
+              "ash_pct": "Askeinnhold i pelletsen",
+              "clean_interval_kg": "Rens kjelen hver (kg brent)",
+              "sweep_interval_days": "Feiing hver (dager)",
+              "service_interval_kg": "Service av brenner hver (kg)",
+              "service_interval_days": "... eller hver (dager)"
+            }
+          },
+          "money": {
+            "name": "Økonomi",
+            "data": {
+              "kwh_per_kg": "Energi per kg pellets",
+              "boiler_efficiency": "Kjelens virkningsgrad",
+              "electricity_price": "Strømpris (for sammenligning)",
+              "heat_pump_cop": "Varmepumpens COP (for sammenligning)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "silo_tracking": {
+      "options": {
+        "boiler": "Styringen (innstilling for magasininnhold)",
+        "integration": "Burnerific, ut fra forbrukstelleren",
+        "sensor": "En silonivåføler"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Skriv inn adresse manuelt"
+      }
+    },
+    "fill_unit": {
+      "options": {
+        "bags": "Sekker",
+        "kg": "kg"
+      }
+    },
+    "task": {
+      "options": {
+        "ash": "Tøm askeskuffen",
+        "clean": "Rens kjelen",
+        "sweep": "Feiing",
+        "service": "Service av brenner"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Tilstand",
+        "state": {
+          "waiting": "Vent litt",
+          "ignition_1": "Tenning 1",
+          "ignition_2": "Tenning 2",
+          "power": "Drift",
+          "pause": "Pause",
+          "hot_water": "Varmtvann",
+          "alarm_low_boiler_temp": "Alarm: lav kjeletemperatur",
+          "stopped_temp_reached": "Stoppet, temperatur nådd",
+          "summer_stop": "Sommerstopp",
+          "alarm_hot_burner": "Alarm: varm brenner",
+          "alarm_burner_plug": "Alarm: brennerplugg eller sjaktføler",
+          "alarm_ignition": "Alarm: tenning",
+          "off": "Av",
+          "alarm_boiler_sensor": "Alarm: feil på kjeleføler",
+          "alarm_photo_sensor": "Alarm: feil på fotocelle",
+          "alarm_shaft_sensor": "Alarm: feil på sjaktføler",
+          "alarm_auger_output": "Alarm: snekkeutgang L1",
+          "alarm_no_flame_high": "Alarm: ingen flamme ved høy effekt",
+          "stopped_external_temp": "Stoppet av ekstern temperatur",
+          "stopped_timer": "Stoppet av tidsur",
+          "stopped_external_contact": "Stoppet av ekstern kontakt",
+          "stopped_weather": "Stoppet av værkompensering",
+          "alarm_fan_rpm": "Alarm: feil på viftehastighet",
+          "alarm_no_flame_low": "Alarm: ingen flamme ved lav effekt",
+          "door_open": "Luke åpen",
+          "alarm_overheat": "Alarm: overopphetingstermostat",
+          "alarm_cascade": "Alarm: kaskadestyring",
+          "alarm_compressor": "Alarm: kompressortrykk",
+          "alarm_back_pressure": "Alarm: mottrykk",
+          "alarm_air_flow": "Alarm: luftmengde ikke nådd",
+          "alarm_exhaust_temp": "Alarm: for høy røykgasstemperatur",
+          "alarm_ash_drawer": "Alarm: askeskuff mangler",
+          "air_flow_calibration": "Kalibrering av luftmengde",
+          "alarm_overpressure": "Alarm: overtrykk i forbrenningen",
+          "alarm_oxygen_sensor": "Alarm: feil på O₂-føler",
+          "compressor_cleaning": "Kompressorrens",
+          "alarm_ignition_failed": "Alarm: tenning mislyktes",
+          "alarm_condensate": "Alarm: kondensoppsamler full",
+          "unknown": "Ukjent"
+        }
+      },
+      "substate": {
+        "name": "Undertilstand",
+        "state": {
+          "none": "Ingen",
+          "purging": "Lufter kjelen før tenning",
+          "ignition_fuel": "Brensel for tenning",
+          "igniter_pulse": "Startpuls tenner",
+          "electric_ignition": "Elektrisk tenning",
+          "cooling_boiler": "Kjøler kjelen",
+          "extinguishing": "Slukker og kjøler brenneren",
+          "fan_cleaning": "Rens med vifte",
+          "ash_removal": "Asketømming",
+          "external_contact": "Ekstern kontakt",
+          "auger_after_run": "Etterløp intern snekke",
+          "residual_heat_to_dhw": "Overfører restvarme til varmtvann",
+          "external_filling": "Ekstern påfylling aktiv",
+          "unknown": "Ukjent"
+        }
+      },
+      "data_source": {
+        "name": "Datakilde",
+        "state": {
+          "local": "Lokalt nettverk",
+          "cloud": "StokerCloud"
+        }
+      },
+      "substate_time": {
+        "name": "Tid igjen i undertilstand"
+      },
+      "power_pct": {
+        "name": "Effekt"
+      },
+      "power_kw": {
+        "name": "Effekt (kW)"
+      },
+      "boiler_temp": {
+        "name": "Kjeletemperatur"
+      },
+      "boiler_ref": {
+        "name": "Ønsket kjeletemperatur"
+      },
+      "return_temp": {
+        "name": "Returtemperatur"
+      },
+      "smoke_temp": {
+        "name": "Røykgasstemperatur"
+      },
+      "shaft_temp": {
+        "name": "Sjakttemperatur"
+      },
+      "dhw_temp": {
+        "name": "Varmtvannstemperatur"
+      },
+      "dhw_ref": {
+        "name": "Ønsket varmtvannstemperatur"
+      },
+      "outdoor_temp": {
+        "name": "Utetemperatur"
+      },
+      "oxygen": {
+        "name": "Oksygen"
+      },
+      "oxygen_ref": {
+        "name": "Ønsket oksygen"
+      },
+      "photo_level": {
+        "name": "Lysnivå"
+      },
+      "fan_speed": {
+        "name": "Viftehastighet"
+      },
+      "exhaust_speed": {
+        "name": "Røykgassvifte"
+      },
+      "consumption_today": {
+        "name": "Forbruk i dag"
+      },
+      "consumption_total": {
+        "name": "Totalt forbruk"
+      },
+      "hot_water_today": {
+        "name": "Varmtvann i dag"
+      },
+      "ignitions": {
+        "name": "Tenninger"
+      },
+      "fuel_energy": {
+        "name": "Energi i brensel"
+      },
+      "silo": {
+        "name": "Silo"
+      },
+      "silo_level": {
+        "name": "Silonivå"
+      },
+      "storage": {
+        "name": "Lager"
+      },
+      "storage_bags": {
+        "name": "Sekker på lager"
+      },
+      "stock": {
+        "name": "Pellets totalt"
+      },
+      "stock_value": {
+        "name": "Verdi av pellets"
+      },
+      "price_per_kg": {
+        "name": "Gjennomsnittlig pelletspris"
+      },
+      "burned_today": {
+        "name": "Brent i dag"
+      },
+      "runout_date": {
+        "name": "Pelletsen tar slutt"
+      },
+      "days_left": {
+        "name": "Dager med pellets igjen"
+      },
+      "silo_empty_date": {
+        "name": "Silo tom"
+      },
+      "order_recommendation": {
+        "name": "Bestill for å klare til påfylling"
+      },
+      "need_until_season_end": {
+        "name": "Behov til påfylling"
+      },
+      "runout_risk": {
+        "name": "Risiko for å gå tom før påfylling"
+      },
+      "forecast_today": {
+        "name": "Forventet i dag"
+      },
+      "forecast_7d": {
+        "name": "Forventet neste 7 dager"
+      },
+      "forecast_30d": {
+        "name": "Forventet neste 30 dager"
+      },
+      "heating_limit": {
+        "name": "Varmegrense"
+      },
+      "kg_per_degree_day": {
+        "name": "Pellets per graddag"
+      },
+      "base_load": {
+        "name": "Grunnforbruk"
+      },
+      "model_days": {
+        "name": "Lærte dager"
+      },
+      "order_by": {
+        "name": "Bestill pellets senest"
+      },
+      "restock_date": {
+        "name": "Neste påfylling"
+      },
+      "ash_level": {
+        "name": "Askeskuff"
+      },
+      "clean_due": {
+        "name": "Rens kjelen senest"
+      },
+      "sweep_due": {
+        "name": "Feiing senest"
+      },
+      "service_due": {
+        "name": "Service av brenner senest"
+      },
+      "cost_today": {
+        "name": "Kostnad i dag"
+      },
+      "cost_month": {
+        "name": "Kostnad denne måneden"
+      },
+      "cost_season": {
+        "name": "Kostnad denne sesongen"
+      },
+      "cost_next_30d": {
+        "name": "Forventet kostnad neste 30 dager"
+      },
+      "fuel_price_kwh": {
+        "name": "Pelletspris per kWh"
+      },
+      "heat_price_pellets": {
+        "name": "Varmepris, pellets"
+      },
+      "heat_price_heat_pump": {
+        "name": "Varmepris, varmepumpe"
+      },
+      "burning_lot": {
+        "name": "Parti som brennes"
+      },
+      "normalized_yearly": {
+        "name": "Årsforbruk, værkorrigert"
+      },
+      "hot_water_share": {
+        "name": "Andel varmtvann"
+      },
+      "burned_total": {
+        "name": "Brent (Burnerific)"
+      },
+      "counter_calibration": {
+        "name": "Kalibrering av teller"
+      },
+      "wind_effect": {
+        "name": "Vindeffekt per 5 m/s"
+      },
+      "sun_effect": {
+        "name": "Solbesparelse"
+      }
+    },
+    "binary_sensor": {
+      "alarm": {
+        "name": "Alarm"
+      },
+      "burning": {
+        "name": "Flamme"
+      },
+      "igniting": {
+        "name": "Tenner"
+      },
+      "boiler_pump": {
+        "name": "Kjelepumpe"
+      },
+      "house_pump": {
+        "name": "Huspumpe"
+      },
+      "dhw_valve": {
+        "name": "Varmtvannsventil"
+      },
+      "order_pellets": {
+        "name": "Bestill pellets"
+      },
+      "refill_silo": {
+        "name": "Fyll siloen"
+      },
+      "ash_due_now": {
+        "name": "Tøm askeskuffen"
+      },
+      "clean_due_now": {
+        "name": "Rens kjelen"
+      },
+      "sweep_due_now": {
+        "name": "Feiing"
+      },
+      "service_due_now": {
+        "name": "Service av brenner"
+      },
+      "lan_connection": {
+        "name": "LAN-tilkobling"
+      }
+    },
+    "number": {
+      "fill_amount": {
+        "name": "Påfyllingsmengde"
+      },
+      "storage_set": {
+        "name": "Pellets på lager"
+      },
+      "silo_set": {
+        "name": "Pellets i silo"
+      }
+    },
+    "button": {
+      "fill_silo": {
+        "name": "Fyll siloen fra lager"
+      },
+      "start": {
+        "name": "Start kjelen"
+      },
+      "stop": {
+        "name": "Stopp kjelen"
+      },
+      "reset_alarm": {
+        "name": "Tilbakestill alarm"
+      },
+      "ash_done": {
+        "name": "Askeskuff tømt"
+      },
+      "clean_done": {
+        "name": "Kjele renset"
+      },
+      "sweep_done": {
+        "name": "Pipe feiet"
+      },
+      "service_done": {
+        "name": "Brenner servisert"
+      }
+    },
+    "climate": {
+      "boiler": {
+        "name": "Kjele"
+      }
+    },
+    "water_heater": {
+      "hot_water": {
+        "name": "Varmtvann"
+      }
+    },
+    "calendar": {
+      "calendar": {
+        "name": "Pelletskalender"
+      }
+    }
+  },
+  "issues": {
+    "alarm_out_of_pellets": {
+      "title": "{boiler}: trolig tom for pellets",
+      "description": "Kjelen har en tenningsalarm (kode {code}) og siloen har omtrent {silo} kg. Fyll siloen, og tilbakestill alarmen på kjelen eller med knappen Tilbakestill alarm."
+    },
+    "alarm_ignition": {
+      "title": "{boiler}: tenning mislyktes",
+      "description": "Alarmkode {code}. Det er fortsatt omtrent {silo} kg i siloen, så sjekk for aske eller slagg i brenneren og at tenneren virker."
+    },
+    "alarm_burner_hot": {
+      "title": "{boiler}: brenneren er for varm",
+      "description": "Alarmkode {code}. Sjekk snekken og sjaktføleren før omstart: en varm brenner kan bety fare for tilbakebrann."
+    },
+    "alarm_overheat": {
+      "title": "{boiler}: overopphetet",
+      "description": "Alarmkode {code}. Overopphetingstermostaten har løst ut. La kjelen kjøle seg ned, sjekk at pumpene sirkulerer, og tilbakestill termostaten."
+    },
+    "alarm_generic": {
+      "title": "{boiler}: alarm",
+      "description": "Kjelen har alarmkode {code}. Se kjelens display for detaljer."
+    }
+  },
+  "exceptions": {
+    "pin_required": {
+      "message": "Angi kjelens PIN i integrasjonen for å endre innstillinger."
+    },
+    "pin_wrong": {
+      "message": "Kjelen avviste PIN-koden. Home Assistant ber om en ny."
+    },
+    "write_failed": {
+      "message": "Kjelen avviste {setting}: {error}"
+    },
+    "amount_required": {
+      "message": "Angi en mengde i kg eller sekker."
+    },
+    "not_enough_storage": {
+      "message": "Bare {storage} kg på lager, kan ikke ta {kg} kg."
+    },
+    "nothing_to_fill": {
+      "message": "Ingenting å fylle: lageret er tomt eller siloen er full."
+    },
+    "bad_fill_log": {
+      "message": "Kunne ikke lese påfyllingsloggen: {error}"
+    },
+    "empty_fill_log": {
+      "message": "Påfyllingsloggen har ingen linjer."
+    },
+    "entry_not_found": {
+      "message": "Ingen lastet Burnerific-kjele passer."
+    },
+    "entry_ambiguous": {
+      "message": "Mer enn én kjele: angi hvilken med config_entry_id."
+    }
+  },
+  "services": {
+    "add_delivery": {
+      "name": "Legg til pelletslevering",
+      "description": "Pellets er levert. Legges på lager som et parti og oppdaterer snittprisen.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mengde i kilo."
+        },
+        "bags": {
+          "name": "Sekker",
+          "description": "Mengde i sekker (sekkestørrelse fra innstillingene). Legges til kg."
+        },
+        "price_per_kg": {
+          "name": "Pris per kg",
+          "description": "Valgfri."
+        },
+        "total_price": {
+          "name": "Totalpris",
+          "description": "Valgfri, brukes hvis pris per kg mangler."
+        },
+        "supplier": {
+          "name": "Leverandør",
+          "description": "Valgfri. Brukes til å sammenligne hvor godt leverandørenes pellets brenner."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Fritekst som lagres i lagerloggen."
+        }
+      }
+    },
+    "fill_silo": {
+      "name": "Fyll siloen",
+      "description": "Pellets er fylt i siloen. Tas fra lageret og skrives til styringen hvis PIN er angitt.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mengde i kilo. La kg og sekker stå tomme for å fylle hele sekker opp til silokapasiteten."
+        },
+        "bags": {
+          "name": "Sekker",
+          "description": "Mengde i sekker (sekkestørrelse fra innstillingene). Legges til kg."
+        },
+        "from_storage": {
+          "name": "Ta fra lager",
+          "description": "Slå av hvis pelletsen ikke kom fra lageret som spores."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Fritekst som lagres i lagerloggen."
+        }
+      }
+    },
+    "set_storage": {
+      "name": "Angi lager",
+      "description": "Korriger mengden på lager etter opptelling.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mengde i kilo."
+        },
+        "bags": {
+          "name": "Sekker",
+          "description": "Mengde i sekker (sekkestørrelse fra innstillingene). Legges til kg."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Fritekst som lagres i lagerloggen."
+        }
+      }
+    },
+    "set_silo": {
+      "name": "Angi siloinnhold",
+      "description": "Korriger mengden i siloen.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "kg": {
+          "name": "kg",
+          "description": "Mengde i kilo."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Fritekst som lagres i lagerloggen."
+        }
+      }
+    },
+    "set_setting": {
+      "name": "Endre kjeleinnstilling",
+      "description": "Skriv en vilkårlig innstilling i styringen, f.eks. boiler.temp. Krever PIN.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "key": {
+          "name": "Innstilling",
+          "description": "gruppe.navn, f.eks. boiler.temp eller hot_water.temp."
+        },
+        "value": {
+          "name": "Verdi",
+          "description": "Ny verdi."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Hent pelletsprognose",
+      "description": "Returnerer alt: når pelletsen tar slutt, daglig kurve, modell, vedlikehold, partier, sesonger og kostnader.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        }
+      }
+    },
+    "import_fills": {
+      "name": "Importer påfyllingslogg",
+      "description": "Lær modellen fra dine egne notater: én linje per silopåfylling med dato og mengde, f.eks. '04-10-2025 6'.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "log": {
+          "name": "Påfyllingslogg",
+          "description": "Dato (dag-måned-år eller år-måned-dag) og mengde per linje."
+        },
+        "unit": {
+          "name": "Mengder er i",
+          "description": "Sekker (sekkestørrelse fra innstillingene) eller kilo."
+        }
+      }
+    },
+    "maintenance_done": {
+      "name": "Vedlikehold utført",
+      "description": "Merk en vedlikeholdsoppgave som utført, ev. på en tidligere dato.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Kjele",
+          "description": "Hvilken kjele. Trengs bare med flere."
+        },
+        "task": {
+          "name": "Oppgave",
+          "description": "Hvilken oppgave."
+        },
+        "date": {
+          "name": "Dato",
+          "description": "Når det ble gjort. Standard i dag."
+        }
+      }
+    }
+  }
+}

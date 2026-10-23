@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import datetime
 import math
-from pathlib import Path
 import random
 import sys
+from datetime import datetime
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 

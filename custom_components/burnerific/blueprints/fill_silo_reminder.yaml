@@ -1,0 +1,55 @@
+blueprint:
+  name: Burnerific - remind me to fill the silo
+  description: >
+    Sends a phone notification when the silo is likely to run empty within two
+    days and there are pellets in storage to fill it with.
+  domain: automation
+  source_url: https://github.com/dissan/burnerific/blob/main/custom_components/burnerific/blueprints/fill_silo_reminder.yaml
+  input:
+    refill_silo:
+      name: Refill silo
+      description: The "Refill silo" binary sensor of your boiler.
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: binary_sensor
+    silo:
+      name: Silo
+      description: The "Silo" sensor (kg in the silo).
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: sensor
+    silo_empty:
+      name: Silo empty
+      description: The "Silo empty" date sensor.
+      selector:
+        entity:
+          filter:
+            - integration: burnerific
+              domain: sensor
+    phone:
+      name: Phone
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+
+triggers:
+  - trigger: state
+    entity_id: !input refill_silo
+    to: "on"
+
+actions:
+  - variables:
+      silo_entity: !input silo
+      empty_entity: !input silo_empty
+  - domain: mobile_app
+    type: notify
+    device_id: !input phone
+    title: Fill the silo
+    message: >
+      {{ states(silo_entity) | float(0) | round(0) }} kg left in the silo, likely empty
+      {{ states(empty_entity) }}.

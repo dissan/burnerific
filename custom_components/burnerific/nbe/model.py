@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
 import logging
 import math
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
 
 from .client import CONSUMPTION_KEYS, NbeClient, NbeError, NbeRefused
+from .eventlog import LogEntry
 from .states import IGNITION, is_alarm
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 NO_SENSOR = 999.9
 
 # Settings groups read on every slow cycle. Others are read once for diagnostics.
-SLOW_GROUPS = ("boiler", "hot_water", "hopper", "auger", "regulation", "weather", "oxygen", "misc")
+SLOW_GROUPS = ("boiler", "hot_water", "hopper", "auger", "regulation", "weather", "oxygen", "ignition", "misc")
 
 
 def num(value: object) -> float | None:
@@ -77,6 +78,12 @@ class BoilerData:
     days_kg: list[float] = field(default_factory=list)
     months_kg: list[float] = field(default_factory=list)
     hours_kg: list[float] = field(default_factory=list)
+    dhw_days_kg: list[float] = field(default_factory=list)
+
+    lambda_fitted: bool | None = None  # O₂ regulation on: the controller trusts its lambda sensor
+    ignitions: int | None = None  # lifetime ignition counter
+    source: str = "local"  # "local" (UDP) or "cloud" (StokerCloud fallback)
+    events: list = field(default_factory=list)  # new controller event log entries since last read
 
     @property
     def alarm(self) -> bool:
@@ -107,6 +114,21 @@ class BoilerData:
         prev = today.replace(day=1) - timedelta(days=1)
         if (day.year, day.month) == (prev.year, prev.month) and day.day > today.day:
             return self.days_kg[i]
+        return None
+
+    def dhw_kg_on(self, day: date) -> float | None:
+        """Hot water share of a day, from the rolling hot water day array (same layout as ``kg_on``)."""
+        if not any(self.dhw_days_kg):
+            return None
+        today = self.at.date()
+        i = day.day - 1
+        if day > today or not 0 <= i < len(self.dhw_days_kg):
+            return None
+        prev = today.replace(day=1) - timedelta(days=1)
+        if (day.year, day.month) == (today.year, today.month) or (
+            (day.year, day.month) == (prev.year, prev.month) and day.day > today.day
+        ):
+            return self.dhw_days_kg[i]
         return None
 
     def kg_in_month(self, year: int, month: int) -> float | None:
@@ -160,6 +182,9 @@ class BoilerData:
             days_kg=series(c("total_days")),
             months_kg=series(c("total_months")),
             hours_kg=series(c("total_hours")),
+            dhw_days_kg=dhw_days,
+            lambda_fitted=None if s("oxygen/regulation") is None else flag(s("oxygen/regulation")),
+            ignitions=int(n) if (n := num(s("ignition/ignition_number"))) is not None else None,
         )
 
 
@@ -176,6 +201,7 @@ class BoilerReader:
         self._slow: dict[str, str] = {}
         self._polls = 0
         self._missing: set[str] = set()
+        self.event_bookmark: datetime | None = None
 
     def invalidate(self) -> None:
         """Force a slow read next time, e.g. after writing a setting."""
@@ -190,10 +216,35 @@ class BoilerReader:
             fast |= _prefixed("advanced_data/", await c.advanced_data())
         except NbeError as err:
             _LOGGER.debug("advanced data unavailable: %s", err)
+        events: list[LogEntry] = []
         if self._polls % self.slow_every == 0:
             await self._read_slow()
+            events = await self._read_events(now)
         self._polls += 1
-        return BoilerData.from_raw(self._slow | fast, now)
+        data = BoilerData.from_raw(self._slow | fast, now)
+        data.events = events
+        return data
+
+    async def _read_events(self, now: datetime) -> list[LogEntry]:
+        """New event log entries since the last read. The first read only sets the bookmark."""
+        if "event_log" in self._missing:
+            return []
+        try:
+            entries = await self.client.event_log(now)
+        except NbeError as err:
+            if isinstance(err, NbeRefused):
+                self._missing.add("event_log")
+            _LOGGER.debug("event log unavailable: %s", err)
+            return []
+        if not entries:
+            return []
+        newest = max(e.at for e in entries)
+        if self.event_bookmark is None:
+            self.event_bookmark = newest
+            return []
+        fresh = sorted((e for e in entries if e.at > self.event_bookmark), key=lambda e: e.at)
+        self.event_bookmark = max(newest, self.event_bookmark)
+        return fresh
 
     async def _read_slow(self) -> None:
         slow: dict[str, str] = {}

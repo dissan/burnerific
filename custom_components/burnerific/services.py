@@ -7,7 +7,6 @@ from datetime import date
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
@@ -16,20 +15,28 @@ from homeassistant.helpers import config_validation as cv
 from .const import (
     ATTR_BAGS,
     ATTR_CONFIG_ENTRY,
+    ATTR_DATE,
     ATTR_FROM_STORAGE,
     ATTR_KEY,
     ATTR_KG,
+    ATTR_LOG,
     ATTR_NOTE,
     ATTR_PRICE_PER_KG,
+    ATTR_SUPPLIER,
+    ATTR_TASK,
     ATTR_TOTAL_PRICE,
+    ATTR_UNIT,
     ATTR_VALUE,
     DOMAIN,
     SERVICE_ADD_DELIVERY,
     SERVICE_FILL_SILO,
     SERVICE_GET_FORECAST,
+    SERVICE_IMPORT_FILLS,
+    SERVICE_MAINTENANCE_DONE,
     SERVICE_SET_SETTING,
     SERVICE_SET_SILO,
     SERVICE_SET_STORAGE,
+    TASKS,
 )
 
 if TYPE_CHECKING:
@@ -45,8 +52,15 @@ ADD_DELIVERY_SCHEMA = vol.Schema(
         vol.Optional(ATTR_BAGS): _amount,
         vol.Optional(ATTR_PRICE_PER_KG): _amount,
         vol.Optional(ATTR_TOTAL_PRICE): _amount,
+        vol.Optional(ATTR_SUPPLIER): cv.string,
         vol.Optional(ATTR_NOTE): cv.string,
     }
+)
+IMPORT_FILLS_SCHEMA = vol.Schema(
+    {**_ENTRY, vol.Required(ATTR_LOG): cv.string, vol.Optional(ATTR_UNIT, default="bags"): vol.In(["bags", "kg"])}
+)
+MAINTENANCE_DONE_SCHEMA = vol.Schema(
+    {**_ENTRY, vol.Required(ATTR_TASK): vol.In(TASKS), vol.Optional(ATTR_DATE): cv.date}
 )
 FILL_SILO_SCHEMA = vol.Schema(
     {
@@ -96,13 +110,52 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _insights(state: Any) -> dict[str, Any]:
+    if state is None:
+        return {}
+    ins = state.insights
+    cal = ins.calibration
+    return {
+        "restock_date": state.restock.isoformat(),
+        "order_by": state.order_by.isoformat() if state.order_by else None,
+        "maintenance": {k: t.as_dict() for k, t in state.tasks.items()},
+        "lots": [lot.as_dict() for lot in ins.lots],
+        "seasons": [s.as_dict() for s in ins.seasons],
+        "normal_year_kg": ins.normal_year_kg,
+        "calibration": None
+        if cal is None
+        else {"factor": round(cal.factor, 3), "uncertainty": round(cal.uncertainty, 3), "source": cal.source},
+        "hot_water": {"daily_kg": ins.dhw_daily_kg, "share": ins.dhw_share},
+        "heat_price": asdict(state.heat),
+        "cost": {
+            "today": state.cost_today,
+            "month": state.cost_month,
+            "season": state.cost_season,
+            "next_30_days": state.cost_next_30,
+        },
+    }
+
+
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
     async def add_delivery(call: ServiceCall) -> None:
         d = call.data
         await _entry(hass, call).runtime_data.pellets.async_add_delivery(
-            d.get(ATTR_KG), d.get(ATTR_BAGS), d.get(ATTR_PRICE_PER_KG), d.get(ATTR_TOTAL_PRICE), d.get(ATTR_NOTE)
+            d.get(ATTR_KG),
+            d.get(ATTR_BAGS),
+            d.get(ATTR_PRICE_PER_KG),
+            d.get(ATTR_TOTAL_PRICE),
+            d.get(ATTR_NOTE),
+            d.get(ATTR_SUPPLIER),
         )
+
+    async def import_fills(call: ServiceCall) -> ServiceResponse:
+        pellets = _entry(hass, call).runtime_data.pellets
+        unit = pellets.inventory.bag_kg if call.data[ATTR_UNIT] == "bags" else 1.0
+        return await pellets.async_import_fills(call.data[ATTR_LOG], unit)
+
+    async def maintenance_done(call: ServiceCall) -> None:
+        await _entry(hass, call).runtime_data.pellets.async_maintenance_done(call.data[ATTR_TASK], call.data.get(ATTR_DATE))
 
     async def fill_silo(call: ServiceCall) -> None:
         d = call.data
@@ -140,6 +193,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
             "model": pellets.model.describe() if pellets.model else None,
             "climate": {"source": pellets.climate.source, "years": pellets.climate.years, "phi": round(pellets.climate.phi, 3)},
             "forecast": _jsonable(asdict(result)) if result else None,
+            **_insights(pellets.data),
         }
 
     for name, handler, schema in (
@@ -150,6 +204,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
         (SERVICE_SET_SETTING, set_setting, SET_SETTING_SCHEMA),
     ):
         hass.services.async_register(DOMAIN, name, handler, schema=schema)
+    hass.services.async_register(DOMAIN, SERVICE_MAINTENANCE_DONE, maintenance_done, schema=MAINTENANCE_DONE_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_IMPORT_FILLS, import_fills, schema=IMPORT_FILLS_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    )
     hass.services.async_register(
         DOMAIN, SERVICE_GET_FORECAST, get_forecast, schema=GET_FORECAST_SCHEMA, supports_response=SupportsResponse.ONLY
     )
