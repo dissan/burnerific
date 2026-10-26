@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Home Assistant dev config: keep only the YAML
+config/*
+!config/configuration.yaml

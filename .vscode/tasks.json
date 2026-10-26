@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Home Assistant",
+      "type": "shell",
+      "command": "scripts/develop",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Fake boiler",
+      "type": "shell",
+      "command": "python scripts/fake_boiler.py --speed 30",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Home Assistant + fake boiler",
+      "dependsOn": ["Fake boiler", "Run Home Assistant"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests",
+      "type": "shell",
+      "command": "scripts/test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}
